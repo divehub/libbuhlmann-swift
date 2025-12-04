@@ -60,10 +60,12 @@ final class TTSBailoutTests: XCTestCase {
         engine.initializeTissues(gas: diluent)
 
         // Plan a CCR dive: descend to 50m, stay 25 minutes
-        let diveSegments: [(startDepth: Double, endDepth: Double, time: Double)] = [
-            (0, 50, 5),  // Descent
-            (50, 50, 25),  // Bottom time
-        ]
+        // Now includes setpoint per segment
+        let diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)] =
+            [
+                (0, 50, 5, 1.3),  // Descent at SP 1.3
+                (50, 50, 25, 1.3),  // Bottom time at SP 1.3
+            ]
 
         // Bailout gas: bottom gas is diluent, plus EAN50 for deco
         let ean50 = try Gas(o2: 0.50, he: 0.0, maxDepth: 21)
@@ -71,7 +73,6 @@ final class TTSBailoutTests: XCTestCase {
         let bailout = try engine.calculateBailoutPlan(
             diveSegments: diveSegments,
             diluent: diluent,
-            setpoint: 1.3,
             bailoutGas: diluent,
             bailoutDecoGases: [ean50],
             gfLow: 0.3,
@@ -86,9 +87,15 @@ final class TTSBailoutTests: XCTestCase {
         XCTAssertGreaterThan(
             bailout.bailoutSchedule.count, 0, "Should have bailout deco schedule")
 
+        // Verify CCR segments are included
+        XCTAssertEqual(
+            bailout.ccrSegmentsToWorstCase.count, 2,
+            "Should have 2 CCR segments (descent + bottom)")
+
         print("\n=== Bailout Analysis (50m/25min CCR) ===")
         print("Worst-case depth: \(Int(bailout.worstCaseDepth))m")
         print("Worst-case TTS: \(String(format: "%.1f", bailout.worstCaseTTS)) min")
+        print("CCR segments to bailout point: \(bailout.ccrSegmentsToWorstCase.count)")
         print("Bailout schedule:")
         for segment in bailout.bailoutSchedule where segment.startDepth == segment.endDepth {
             print(

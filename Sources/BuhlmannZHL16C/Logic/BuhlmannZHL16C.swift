@@ -818,6 +818,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         public let worstCaseDepth: Double
         /// The TTS at the worst-case depth.
         public let worstCaseTTS: Double
+        /// The CCR segments from dive start up to the worst-case bailout point.
+        public let ccrSegmentsToWorstCase: [DiveSegment]
         /// The OC deco schedule for bailout from the worst-case depth.
         public let bailoutSchedule: [DiveSegment]
         /// The tissue state at the worst-case point (for display/analysis).
@@ -842,9 +844,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: BailoutAnalysis containing worst-case scenario and full bailout schedule.
     public func calculateBailoutPlan(
-        diveSegments: [(startDepth: Double, endDepth: Double, time: Double)],
+        diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)],
         diluent: Gas,
-        setpoint: Double,
         bailoutGas: Gas,
         bailoutDecoGases: [Gas] = [],
         gfLow: Double,
@@ -857,30 +858,50 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         var worstTTS: Double = 0
         var worstDepth: Double = 0
         var worstTissueState: [Compartment] = simEngine.compartments
+        var worstSegmentIndex: Int = 0
 
-        // Sample points to check TTS (at each segment end and at regular intervals)
-        var checkPoints: [(depth: Double, compartments: [Compartment])] = []
+        // Sample points to check TTS (at each segment end)
+        // Each checkpoint stores: depth, compartments, and the segment index
+        var checkPoints: [(depth: Double, compartments: [Compartment], segmentIndex: Int)] = []
+
+        // Build CCR segments with effective gas for display
+        var ccrSegments: [DiveSegment] = []
 
         // Run through the dive, collecting tissue states at key points
-        for segment in diveSegments {
+        for (index, segment) in diveSegments.enumerated() {
             // Add CCR segment to simulation
             try simEngine.addCCRSegment(
                 startDepth: segment.startDepth,
                 endDepth: segment.endDepth,
                 time: segment.time,
                 diluent: diluent,
-                setpoint: setpoint,
+                setpoint: segment.setpoint,
                 surfacePressure: surfacePressure
             )
 
-            // Check at end of each segment
-            checkPoints.append((depth: segment.endDepth, compartments: simEngine.compartments))
+            // Store the CCR segment with effective gas at midpoint for display
+            let midDepth = (segment.startDepth + segment.endDepth) / 2.0
+            let effectiveGas = try Gas.effectiveGas(
+                atDepth: midDepth,
+                setpoint: segment.setpoint,
+                diluent: diluent,
+                surfacePressure: surfacePressure
+            )
+            ccrSegments.append(
+                DiveSegment(
+                    startDepth: segment.startDepth,
+                    endDepth: segment.endDepth,
+                    time: segment.time,
+                    gas: effectiveGas
+                ))
 
-            // For long bottom segments, also check at intermediate points
-            if abs(segment.startDepth - segment.endDepth) < 0.01 && segment.time > 5 {
-                // Already added end point, but we should track throughout
-                // For simplicity, the end of bottom time is usually worst case
-            }
+            // Check at end of each segment
+            checkPoints.append(
+                (
+                    depth: segment.endDepth,
+                    compartments: simEngine.compartments,
+                    segmentIndex: index
+                ))
         }
 
         // Evaluate TTS at each checkpoint to find worst case
@@ -903,6 +924,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 worstTTS = tts
                 worstDepth = checkpoint.depth
                 worstTissueState = checkpoint.compartments
+                worstSegmentIndex = checkpoint.segmentIndex
             }
         }
 
@@ -921,9 +943,13 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             surfacePressure: surfacePressure
         )
 
+        // Get CCR segments up to and including the worst-case point
+        let ccrSegmentsToWorstCase = Array(ccrSegments.prefix(worstSegmentIndex + 1))
+
         return BailoutAnalysis(
             worstCaseDepth: worstDepth,
             worstCaseTTS: worstTTS,
+            ccrSegmentsToWorstCase: ccrSegmentsToWorstCase,
             bailoutSchedule: bailoutSchedule,
             tissueState: worstTissueState
         )
