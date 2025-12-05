@@ -974,12 +974,14 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         bailoutSchedule.append(contentsOf: decoStops)
 
+        let tts = bailoutSchedule.reduce(0) { $0 + $1.time }
+
         // Get CCR segments up to and including the worst-case point
         let ccrSegmentsToWorstCase = Array(ccrSegments.prefix(worstSegmentIndex + 1))
 
         return BailoutAnalysis(
             worstCaseDepth: worstDepth,
-            worstCaseTTS: worstTTS,
+            worstCaseTTS: tts,
             ccrSegmentsToWorstCase: ccrSegmentsToWorstCase,
             bailoutSchedule: bailoutSchedule,
             tissueState: worstTissueState
