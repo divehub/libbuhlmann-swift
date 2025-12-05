@@ -73,7 +73,6 @@ final class TTSBailoutTests: XCTestCase {
         let bailout = try engine.calculateBailoutPlan(
             diveSegments: diveSegments,
             diluent: diluent,
-            bailoutGas: diluent,
             bailoutDecoGases: [ean50],
             gfLow: 0.3,
             gfHigh: 0.7
