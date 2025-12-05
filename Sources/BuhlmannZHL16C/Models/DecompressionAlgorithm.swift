@@ -24,19 +24,23 @@ public struct DecoConfig: Sendable {
     public let gasSwitchTime: Double
     /// Mode for handling gas switch timing
     public let gasSwitchMode: GasSwitchMode
+    /// CCR bailout troubleshooting time in minutes (time at depth after bailout before ascending)
+    public let troubleshootingTime: Double
 
     public init(
         ascentRate: Double = 9.0,
         stopIncrement: Double = 3.0,
         lastStopDepth: Double = 3.0,
         gasSwitchTime: Double = 1.0,
-        gasSwitchMode: GasSwitchMode = .disabled
+        gasSwitchMode: GasSwitchMode = .disabled,
+        troubleshootingTime: Double = 0.0
     ) {
         self.ascentRate = ascentRate
         self.stopIncrement = stopIncrement
         self.lastStopDepth = lastStopDepth
         self.gasSwitchTime = gasSwitchTime
         self.gasSwitchMode = gasSwitchMode
+        self.troubleshootingTime = troubleshootingTime
     }
 
     /// Default configuration

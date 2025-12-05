@@ -816,11 +816,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     public struct BailoutAnalysis: Sendable {
         /// The depth at which bailout has the longest TTS (worst case).
         public let worstCaseDepth: Double
-        /// The TTS at the worst-case depth.
+        /// The TTS at the worst-case depth (including troubleshooting time).
         public let worstCaseTTS: Double
         /// The CCR segments from dive start up to the worst-case bailout point.
         public let ccrSegmentsToWorstCase: [DiveSegment]
-        /// The OC deco schedule for bailout from the worst-case depth.
+        /// The OC deco schedule for bailout from the worst-case depth (includes troubleshooting segment).
         public let bailoutSchedule: [DiveSegment]
         /// The tissue state at the worst-case point (for display/analysis).
         public let tissueState: [Compartment]
@@ -832,22 +832,26 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     /// would result in the longest Time To Surface (TTS). This is typically at
     /// maximum depth after the longest bottom time.
     ///
+    /// The bailout procedure is:
+    /// 1. Instant switch to diluent (bailout gas)
+    /// 2. Stay at current depth for troubleshooting time
+    /// 3. Begin ascent, switching to deco gases as available (respecting gas switch mode)
+    ///
     /// - Parameters:
     ///   - diveSegments: The planned CCR dive segments (before deco).
-    ///   - diluent: The CCR diluent gas used during the dive.
-    ///   - setpoint: The CCR setpoint used during the dive.
-    ///   - bailoutGas: The primary OC gas for bailout (typically bottom gas or travel gas).
+    ///   - diluent: The CCR diluent gas used during the dive (also the primary bailout gas).
     ///   - bailoutDecoGases: Available OC deco gases for bailout ascent.
+    ///   - troubleshootingTime: Time to stay at depth after bailout (minutes). Default 0.
     ///   - gfLow: Gradient Factor Low.
     ///   - gfHigh: Gradient Factor High.
-    ///   - config: Decompression configuration.
+    ///   - config: Decompression configuration (includes gas switch settings).
     ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: BailoutAnalysis containing worst-case scenario and full bailout schedule.
     public func calculateBailoutPlan(
         diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)],
         diluent: Gas,
-        bailoutGas: Gas,
         bailoutDecoGases: [Gas] = [],
+        troubleshootingTime: Double = 0,
         gfLow: Double,
         gfHigh: Double,
         config: DecoConfig = .default,
@@ -914,7 +918,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 gfLow: gfLow,
                 gfHigh: gfHigh,
                 currentDepth: checkpoint.depth,
-                bottomGas: bailoutGas,
+                bottomGas: diluent,
                 decoGases: bailoutDecoGases,
                 config: config,
                 surfacePressure: surfacePressure
@@ -935,15 +939,40 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         bailoutEngine.compartments = worstTissueState
         bailoutEngine.waterDensity = self.waterDensity
 
-        let bailoutSchedule = bailoutEngine.calculateDecoStops(
+        var bailoutSchedule: [DiveSegment] = []
+
+        // Add troubleshooting segment at depth on bailout gas (diluent)
+        // This simulates staying at depth to troubleshoot the rebreather failure
+        if troubleshootingTime > 0 {
+            bailoutEngine.addSegment(
+                startDepth: worstDepth,
+                endDepth: worstDepth,
+                time: troubleshootingTime,
+                gas: diluent,
+                surfacePressure: surfacePressure
+            )
+            bailoutSchedule.append(
+                DiveSegment(
+                    startDepth: worstDepth,
+                    endDepth: worstDepth,
+                    time: troubleshootingTime,
+                    gas: diluent
+                )
+            )
+        }
+
+        // Calculate deco stops from this point
+        let decoStops = bailoutEngine.calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
             currentDepth: worstDepth,
-            bottomGas: bailoutGas,
+            bottomGas: diluent,
             decoGases: bailoutDecoGases,
             config: config,
             surfacePressure: surfacePressure
         )
+
+        bailoutSchedule.append(contentsOf: decoStops)
 
         // Get CCR segments up to and including the worst-case point
         let ccrSegmentsToWorstCase = Array(ccrSegments.prefix(worstSegmentIndex + 1))
