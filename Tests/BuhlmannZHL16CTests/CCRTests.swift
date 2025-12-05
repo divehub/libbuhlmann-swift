@@ -123,7 +123,7 @@ final class CCRTests: XCTestCase {
         ocEngine.addSegment(startDepth: 0, endDepth: 40, time: 4, gas: diluent)
         ocEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: diluent)
 
-        let ocDeco = ocEngine.calculateDecoStops(
+        let ocDeco = try ocEngine.calculateDecoStops(
             gfLow: 0.3, gfHigh: 0.7, currentDepth: 40, bottomGas: diluent, decoGases: [],
             config: .default)
         let ocDecoTime = ocDeco.filter { $0.startDepth == $0.endDepth }.reduce(0.0) { $0 + $1.time }

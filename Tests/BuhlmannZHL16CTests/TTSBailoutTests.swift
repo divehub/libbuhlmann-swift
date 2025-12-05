@@ -7,7 +7,7 @@ final class TTSBailoutTests: XCTestCase {
     // MARK: - Time To Surface (TTS) Tests
 
     /// Test OC Time To Surface calculation
-    func testTimeToSurface_OC() {
+    func testTimeToSurface_OC() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -15,14 +15,14 @@ final class TTSBailoutTests: XCTestCase {
         engine.addSegment(startDepth: 0, endDepth: 30, time: 3, gas: .air)
         engine.addSegment(startDepth: 30, endDepth: 30, time: 25, gas: .air)
 
-        let tts = engine.timeToSurface(
+        let tts = try engine.timeToSurface(
             gfLow: 0.3, gfHigh: 0.7, currentDepth: 30, bottomGas: .air)
 
         // TTS should be positive (some deco required)
         XCTAssertGreaterThan(tts, 0, "TTS should be positive after 30m/25min")
 
         // Verify TTS matches manual calculation
-        let decoStops = engine.calculateDecoStops(
+        let decoStops = try engine.calculateDecoStops(
             gfLow: 0.3, gfHigh: 0.7, currentDepth: 30, gas: .air)
         let manualTTS = decoStops.reduce(0) { $0 + $1.time }
         XCTAssertEqual(tts, manualTTS, accuracy: 0.01, "TTS should match sum of deco segments")
@@ -32,7 +32,7 @@ final class TTSBailoutTests: XCTestCase {
     }
 
     /// Test TTS with no deco required
-    func testTimeToSurface_NoDeco() {
+    func testTimeToSurface_NoDeco() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -40,7 +40,7 @@ final class TTSBailoutTests: XCTestCase {
         engine.addSegment(startDepth: 0, endDepth: 20, time: 2, gas: .air)
         engine.addSegment(startDepth: 20, endDepth: 20, time: 10, gas: .air)
 
-        let tts = engine.timeToSurface(
+        let tts = try engine.timeToSurface(
             gfLow: 0.3, gfHigh: 0.85, currentDepth: 20, bottomGas: .air)
 
         // TTS should just be ascent time (20m / 9m/min ≈ 2.2 min)
@@ -116,7 +116,7 @@ final class TTSBailoutTests: XCTestCase {
             startDepth: 40, endDepth: 40, time: 20, diluent: diluent, setpoint: 1.3)
 
         // Calculate OC bailout from current state
-        let bailoutSchedule = engine.calculateBailoutFromCurrentState(
+        let bailoutSchedule = try engine.calculateBailoutFromCurrentState(
             currentDepth: 40,
             bailoutGas: diluent,
             bailoutDecoGases: [],
@@ -153,7 +153,7 @@ final class TTSBailoutTests: XCTestCase {
             startDepth: 45, endDepth: 45, time: 25, diluent: diluent, setpoint: 1.3)
 
         // Bailout without deco gases
-        let bailoutNoGas = engine.calculateBailoutFromCurrentState(
+        let bailoutNoGas = try engine.calculateBailoutFromCurrentState(
             currentDepth: 45,
             bailoutGas: diluent,
             bailoutDecoGases: [],
@@ -166,7 +166,7 @@ final class TTSBailoutTests: XCTestCase {
         let ean50 = try! Gas(o2: 0.50, he: 0.0, maxDepth: 21)
         let o2 = try! Gas(o2: 1.0, he: 0.0, maxDepth: 6)
 
-        let bailoutWithGas = engine.calculateBailoutFromCurrentState(
+        let bailoutWithGas = try engine.calculateBailoutFromCurrentState(
             currentDepth: 45,
             bailoutGas: diluent,
             bailoutDecoGases: [ean50, o2],

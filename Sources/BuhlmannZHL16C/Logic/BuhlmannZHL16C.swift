@@ -1,5 +1,11 @@
 import Foundation
 
+/// Errors that can occur during decompression calculations
+public enum DecoError: Error, Sendable {
+    /// The calculated dive duration exceeds the maximum allowed (24 hours = 1440 minutes)
+    case maxDurationExceeded
+}
+
 public struct BuhlmannZHL16C: DecompressionAlgorithm {
     public var compartments: [Compartment]
 
@@ -384,10 +390,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - currentDepth: Current depth in meters (start of ascent).
     ///   - gas: Gas used for ascent.
     /// - Returns: Array of DiveSegments representing the ascent profile.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func calculateDecoStops(gfLow: Double, gfHigh: Double, currentDepth: Double, gas: Gas)
-        -> [DiveSegment]
+        throws -> [DiveSegment]
     {
-        return calculateDecoStops(
+        return try calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
             currentDepth: currentDepth,
@@ -407,6 +414,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - config: Decompression configuration.
     ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Array of DiveSegments representing the ascent profile.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     ///
     /// Gas switching rules:
     /// - Gas switches occur at the closest stop increment depth at or below the gas's MOD
@@ -421,7 +429,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         decoGases: [Gas],
         config: DecoConfig,
         surfacePressure: Double = 1.01325
-    ) -> [DiveSegment] {
+    ) throws -> [DiveSegment] {
+        // Maximum allowed dive duration: 24 hours = 1440 minutes
+        let maxDuration: Double = 1440.0
+        var totalTime: Double = 0.0
+        
         var segments: [DiveSegment] = []
         var depth = currentDepth
         var currentGas = bottomGas
@@ -449,8 +461,12 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
 
         // Helper to add a stop segment
-        func addStop(at stopDepth: Double, time: Double, gas: Gas) {
+        func addStop(at stopDepth: Double, time: Double, gas: Gas) throws {
             guard time > DecoUtils.depthTolerance else { return }
+            totalTime += time
+            if totalTime > maxDuration {
+                throw DecoError.maxDurationExceeded
+            }
             simEngine.addSegment(startDepth: stopDepth, endDepth: stopDepth, time: time, gas: gas)
             segments.append(
                 DiveSegment(startDepth: stopDepth, endDepth: stopDepth, time: time, gas: gas))
@@ -458,12 +474,16 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         // Helper to add an ascent segment
         // Uses surfaceRate for final ascent to surface, ascentRate otherwise
-        func addAscent(from startDepth: Double, to endDepth: Double, gas: Gas) {
+        func addAscent(from startDepth: Double, to endDepth: Double, gas: Gas) throws {
             let distance = startDepth - endDepth
             guard distance > DecoUtils.depthTolerance else { return }
             // Use surfaceRate for final ascent to surface (endDepth == 0)
             let rate = endDepth < DecoUtils.depthTolerance ? config.surfaceRate : config.ascentRate
             let time = distance / rate
+            totalTime += time
+            if totalTime > maxDuration {
+                throw DecoError.maxDurationExceeded
+            }
             simEngine.addSegment(startDepth: startDepth, endDepth: endDepth, time: time, gas: gas)
             segments.append(
                 DiveSegment(startDepth: startDepth, endDepth: endDepth, time: time, gas: gas))
@@ -527,7 +547,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                     // Switch to new gas immediately, stop for minimum time
                     currentGas = newGas
                     if config.gasSwitchTime > DecoUtils.depthTolerance {
-                        addStop(at: depth, time: config.gasSwitchTime, gas: newGas)
+                        try addStop(at: depth, time: config.gasSwitchTime, gas: newGas)
                     }
                     // After the stop, re-check ceiling and continue the loop
                     continue
@@ -535,7 +555,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 case .additive:
                     // Stay on old gas during switch time, then switch
                     if config.gasSwitchTime > DecoUtils.depthTolerance {
-                        addStop(at: depth, time: config.gasSwitchTime, gas: currentGas)
+                        try addStop(at: depth, time: config.gasSwitchTime, gas: currentGas)
                     }
                     currentGas = newGas
                     // After the stop, re-check ceiling and continue the loop
@@ -549,11 +569,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
             if canAscend {
                 // Safe to ascend to next stop
-                addAscent(from: depth, to: nextStop, gas: currentGas)
+                try addAscent(from: depth, to: nextStop, gas: currentGas)
                 depth = nextStop
             } else {
                 // Required deco stop - wait 1 minute
-                addStop(at: depth, time: 1.0, gas: currentGas)
+                try addStop(at: depth, time: 1.0, gas: currentGas)
             }
         }
 
@@ -633,6 +653,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - surfacePressure: Surface pressure in bar (default 1.01325).
     /// - Returns: Array of DiveSegments representing the ascent profile.
     /// - Throws: `GasError.cannotDilute` if the diluent cannot achieve the setpoint at depth.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func calculateCCRDecoStops(
         gfLow: Double,
         gfHigh: Double,
@@ -644,6 +665,10 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ) throws -> [DiveSegment] {
         // Constants for floating-point comparisons
         let depthTolerance = 0.01  // 1 cm for depth comparisons
+        
+        // Maximum allowed dive duration: 24 hours = 1440 minutes
+        let maxDuration: Double = 1440.0
+        var totalTime: Double = 0.0
 
         var segments: [DiveSegment] = []
         var depth = currentDepth
@@ -679,6 +704,10 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Helper to add a CCR stop segment
         func addStop(at stopDepth: Double, time: Double) throws {
             guard time > depthTolerance else { return }
+            totalTime += time
+            if totalTime > maxDuration {
+                throw DecoError.maxDurationExceeded
+            }
             let gas = try getEffectiveGas(at: stopDepth)
             try simEngine.addCCRSegment(
                 startDepth: stopDepth, endDepth: stopDepth, time: time,
@@ -695,6 +724,10 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             // Use surfaceRate for final ascent to surface (endDepth == 0)
             let rate = endDepth < depthTolerance ? config.surfaceRate : config.ascentRate
             let time = distance / rate
+            totalTime += time
+            if totalTime > maxDuration {
+                throw DecoError.maxDurationExceeded
+            }
             // Use effective gas at midpoint for the segment's gas property
             let midDepth = (startDepth + endDepth) / 2.0
             let gas = try getEffectiveGas(at: midDepth)
@@ -760,6 +793,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - config: Decompression configuration.
     ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Total time to surface in minutes.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func timeToSurface(
         gfLow: Double,
         gfHigh: Double,
@@ -768,8 +802,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         decoGases: [Gas] = [],
         config: DecoConfig = .default,
         surfacePressure: Double = 1.01325
-    ) -> Double {
-        let decoStops = calculateDecoStops(
+    ) throws -> Double {
+        let decoStops = try calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
             currentDepth: currentDepth,
@@ -906,7 +940,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             evalEngine.compartments = checkpoint.compartments
             evalEngine.waterDensity = self.waterDensity
 
-            let tts = evalEngine.timeToSurface(
+            let tts = try evalEngine.timeToSurface(
                 gfLow: gfLow,
                 gfHigh: gfHigh,
                 currentDepth: checkpoint.depth,
@@ -954,7 +988,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
 
         // Calculate deco stops from this point
-        let decoStops = bailoutEngine.calculateDecoStops(
+        let decoStops = try bailoutEngine.calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
             currentDepth: bailoutDepth,
@@ -993,6 +1027,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - config: Decompression configuration.
     ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Array of DiveSegments representing the OC bailout ascent profile.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func calculateBailoutFromCurrentState(
         currentDepth: Double,
         bailoutGas: Gas,
@@ -1001,8 +1036,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         gfHigh: Double,
         config: DecoConfig = .default,
         surfacePressure: Double = 1.01325
-    ) -> [DiveSegment] {
-        return calculateDecoStops(
+    ) throws -> [DiveSegment] {
+        return try calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
             currentDepth: currentDepth,

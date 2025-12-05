@@ -27,7 +27,7 @@ final class CeilingTests: XCTestCase {
         XCTAssertGreaterThan(ceilGF, ceilRaw)
     }
 
-    func testCeilingViolation() {
+    func testCeilingViolation() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
         // 40m for 20 mins
@@ -36,7 +36,7 @@ final class CeilingTests: XCTestCase {
 
         let gfLow = 0.50
         let gfHigh = 0.70
-        let deco = engine.calculateDecoStops(
+        let deco = try engine.calculateDecoStops(
             gfLow: gfLow, gfHigh: gfHigh, currentDepth: 40, gas: Gas.air)
 
         // Replay the deco profile and check ceiling at each step

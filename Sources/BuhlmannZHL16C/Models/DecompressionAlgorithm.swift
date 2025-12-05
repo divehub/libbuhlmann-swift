@@ -95,8 +95,9 @@ public protocol DecompressionAlgorithm: Sendable {
     func ndl(depth: Double, gas: Gas, gf: Double, surfacePressure: Double) -> Double
 
     /// Calculate decompression stops required to surface (single gas).
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     func calculateDecoStops(gfLow: Double, gfHigh: Double, currentDepth: Double, gas: Gas)
-        -> [DiveSegment]
+        throws -> [DiveSegment]
 
     /// Calculate decompression stops with multiple gases.
     /// - Parameters:
@@ -108,6 +109,7 @@ public protocol DecompressionAlgorithm: Sendable {
     ///   - config: Decompression configuration.
     ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Array of DiveSegments representing the ascent profile.
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     func calculateDecoStops(
         gfLow: Double,
         gfHigh: Double,
@@ -116,7 +118,7 @@ public protocol DecompressionAlgorithm: Sendable {
         decoGases: [Gas],
         config: DecoConfig,
         surfacePressure: Double
-    ) -> [DiveSegment]
+    ) throws -> [DiveSegment]
 
     /// Calculate CCR decompression stops required to surface.
     /// - Parameters:
@@ -139,6 +141,7 @@ public protocol DecompressionAlgorithm: Sendable {
     ) throws -> [DiveSegment]
 
     /// Calculate Time To Surface for OC gas(es).
+    /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     func timeToSurface(
         gfLow: Double,
         gfHigh: Double,
@@ -147,7 +150,7 @@ public protocol DecompressionAlgorithm: Sendable {
         decoGases: [Gas],
         config: DecoConfig,
         surfacePressure: Double
-    ) -> Double
+    ) throws -> Double
 
     /// Calculate Time To Surface for CCR.
     func timeToSurfaceCCR(

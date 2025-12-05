@@ -4,7 +4,7 @@ import XCTest
 
 final class DecoTests: XCTestCase {
 
-    func testDecoStops() {
+    func testDecoStops() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -12,7 +12,7 @@ final class DecoTests: XCTestCase {
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         engine.addSegment(startDepth: 40, endDepth: 40, time: 18, gas: Gas.air)
 
-        let deco = engine.calculateDecoStops(
+        let deco = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.85, currentDepth: 40, gas: Gas.air)
 
         XCTAssertFalse(deco.isEmpty)
@@ -20,7 +20,7 @@ final class DecoTests: XCTestCase {
         XCTAssertTrue(deco.contains(where: { $0.endDepth > 3 }))
     }
 
-    func testGF50_70_Discrepancy() {
+    func testGF50_70_Discrepancy() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -29,7 +29,7 @@ final class DecoTests: XCTestCase {
         engine.addSegment(startDepth: 30, endDepth: 30, time: 18, gas: Gas.air)  // 18 min hold -> 20 min run time
 
         // Calculate deco with GF 50/70
-        let deco = engine.calculateDecoStops(
+        let deco = try engine.calculateDecoStops(
             gfLow: 0.50, gfHigh: 0.70, currentDepth: 30, gas: Gas.air)
 
         var totalDecoTime = 0.0
@@ -54,7 +54,7 @@ final class DecoTests: XCTestCase {
 
     /// Primary validation scenario: 30m for 25 minutes on Air with GF 30/70
     /// This tests a realistic recreational-to-light-deco dive profile
-    func testScenario_30m25min_Air_GF3070() {
+    func testScenario_30m25min_Air_GF3070() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -74,7 +74,7 @@ final class DecoTests: XCTestCase {
             ceilingAtBottom, 0, "Should require deco after 25min at 30m with GF 30/70")
 
         // Calculate deco schedule
-        let decoStops = engine.calculateDecoStops(
+        let decoStops = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.70, currentDepth: 30, gas: Gas.air)
 
         // Analyze deco profile
@@ -113,7 +113,7 @@ final class DecoTests: XCTestCase {
     }
 
     /// Test ascent rate effect on deco obligation
-    func testAscentRateEffect() {
+    func testAscentRateEffect() throws {
         // Same dive with different ascent rates
         // Note: With very slow ascent rates, the diver spends more time at intermediate depths
         // where tissues can continue loading OR off-gassing depending on the depth relative to
@@ -127,7 +127,7 @@ final class DecoTests: XCTestCase {
         standardEngine.initializeTissues()
         standardEngine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         standardEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: Gas.air)
-        let standardDeco = standardEngine.calculateDecoStops(
+        let standardDeco = try standardEngine.calculateDecoStops(
             gfLow: gfLow, gfHigh: gfHigh, currentDepth: 40, bottomGas: Gas.air,
             decoGases: [], config: standardConfig)
 
@@ -137,7 +137,7 @@ final class DecoTests: XCTestCase {
         fastEngine.initializeTissues()
         fastEngine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         fastEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: Gas.air)
-        let fastDeco = fastEngine.calculateDecoStops(
+        let fastDeco = try fastEngine.calculateDecoStops(
             gfLow: gfLow, gfHigh: gfHigh, currentDepth: 40, bottomGas: Gas.air,
             decoGases: [], config: fastConfig)
 
@@ -156,7 +156,7 @@ final class DecoTests: XCTestCase {
     }
 
     /// Test deco gas switching
-    func testDecoGasSwitching() {
+    func testDecoGasSwitching() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -168,11 +168,11 @@ final class DecoTests: XCTestCase {
         let ean50 = try! Gas(o2: 0.50, he: 0.0, maxDepth: 21)
         let oxygen = try! Gas(o2: 1.0, he: 0.0, maxDepth: 6)
 
-        let decoWithGases = engine.calculateDecoStops(
+        let decoWithGases = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.70, currentDepth: 40, bottomGas: Gas.air,
             decoGases: [ean50, oxygen], config: .default)
 
-        let decoWithoutGases = engine.calculateDecoStops(
+        let decoWithoutGases = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.70, currentDepth: 40, gas: Gas.air)
 
         // Calculate total deco time
@@ -190,7 +190,7 @@ final class DecoTests: XCTestCase {
     }
 
     /// Comprehensive test with expected values for algorithm validation
-    func testExpectedDecoValues() {
+    func testExpectedDecoValues() throws {
         var engine = BuhlmannZHL16C()
         engine.initializeTissues()
 
@@ -201,7 +201,7 @@ final class DecoTests: XCTestCase {
         // With GF 30/85, expect:
         // - First stop around 15-18m
         // - Significant time at 3m and 6m
-        let deco = engine.calculateDecoStops(
+        let deco = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.85, currentDepth: 40, gas: Gas.air)
 
         var stopsByDepth: [Int: Int] = [:]
@@ -220,7 +220,7 @@ final class DecoTests: XCTestCase {
         XCTAssertTrue(stopsByDepth.keys.contains(3), "Must have a 3m stop")
     }
 
-    func testTrimix() {
+    func testTrimix() throws {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.18, he: 0.45)  // 18/45
         engine.initializeTissues()
@@ -229,9 +229,33 @@ final class DecoTests: XCTestCase {
         engine.addSegment(startDepth: 0, endDepth: 60, time: 3, gas: trimix)
         engine.addSegment(startDepth: 60, endDepth: 60, time: 17, gas: trimix)
 
-        let deco = engine.calculateDecoStops(
+        let deco = try engine.calculateDecoStops(
             gfLow: 0.30, gfHigh: 0.85, currentDepth: 60, gas: Gas.nx50)
 
         XCTAssertFalse(deco.isEmpty)
+    }
+
+    func testMaxDurationExceeded() throws {
+        var engine = BuhlmannZHL16C()
+        engine.initializeTissues()
+
+        // Create an extreme dive scenario that would require >24 hours of deco
+        // Very deep dive with air (bad choice) would create huge deco obligation
+        // 150m on air for 120 minutes with no deco gas - this should definitely exceed limits
+        engine.addSegment(startDepth: 0, endDepth: 150, time: 10, gas: Gas.air)
+        engine.addSegment(startDepth: 150, endDepth: 150, time: 110, gas: Gas.air)
+
+        // This extreme scenario should throw maxDurationExceeded
+        XCTAssertThrowsError(
+            try engine.calculateDecoStops(
+                gfLow: 0.30, gfHigh: 0.85, currentDepth: 150, gas: Gas.air)
+        ) { error in
+            XCTAssertTrue(error is DecoError)
+            if case DecoError.maxDurationExceeded = error {
+                // Expected error
+            } else {
+                XCTFail("Expected maxDurationExceeded error, got: \(error)")
+            }
+        }
     }
 }
