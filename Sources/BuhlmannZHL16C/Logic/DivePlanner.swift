@@ -18,16 +18,23 @@ public struct DivePlanner: Sendable {
     public init() {}
 
     /// Generate a full dive profile (with travel segments) from a list of stops.
-    /// - Parameter stops: List of target stops (depth, time, gas).
+    /// - Parameters:
+    ///   - stops: List of target stops (depth, time, gas).
+    ///   - descentRate: Descent rate in m/min (default 20 m/min).
+    ///   - ascentRate: Ascent rate in m/min (default 10 m/min).
     /// - Returns: A `DiveProfile` containing all travel and hold segments.
-    public func plan(stops: [PlanningStop]) -> DiveProfile {
+    public func plan(
+        stops: [PlanningStop],
+        descentRate: Double = 20.0,
+        ascentRate: Double = 10.0
+    ) -> DiveProfile {
         var profile = DiveProfile()
         var currentDepth = 0.0
 
         for stop in stops {
             // 1. Travel to stop depth
             if stop.depth != currentDepth {
-                let rate = (stop.depth > currentDepth) ? 20.0 : 10.0  // 20m/min descent, 10m/min ascent
+                let rate = (stop.depth > currentDepth) ? descentRate : ascentRate
                 // Note: We use the stop's gas for travel.
                 // In reality, descent gas might be different, but for simple planning this is standard.
                 profile.addTravel(to: stop.depth, rate: rate, gas: stop.gas)

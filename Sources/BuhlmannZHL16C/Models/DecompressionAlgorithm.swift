@@ -16,6 +16,8 @@ public enum GasSwitchMode: String, Sendable, Codable, CaseIterable, Identifiable
 public struct DecoConfig: Sendable {
     /// Ascent rate in meters per minute
     public let ascentRate: Double
+    /// Surface rate in meters per minute (used for final ascent from last stop to surface)
+    public let surfaceRate: Double
     /// Stop increment in meters (typically 3m)
     public let stopIncrement: Double
     /// Last stop depth in meters (typically 3m or 6m)
@@ -29,6 +31,7 @@ public struct DecoConfig: Sendable {
 
     public init(
         ascentRate: Double = 9.0,
+        surfaceRate: Double = 3.0,
         stopIncrement: Double = 3.0,
         lastStopDepth: Double = 3.0,
         gasSwitchTime: Double = 1.0,
@@ -36,6 +39,7 @@ public struct DecoConfig: Sendable {
         troubleshootingTime: Double = 0.0
     ) {
         self.ascentRate = ascentRate
+        self.surfaceRate = surfaceRate
         self.stopIncrement = stopIncrement
         self.lastStopDepth = lastStopDepth
         self.gasSwitchTime = gasSwitchTime

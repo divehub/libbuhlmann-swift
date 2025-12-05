@@ -457,10 +457,13 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
 
         // Helper to add an ascent segment
+        // Uses surfaceRate for final ascent to surface, ascentRate otherwise
         func addAscent(from startDepth: Double, to endDepth: Double, gas: Gas) {
             let distance = startDepth - endDepth
             guard distance > DecoUtils.depthTolerance else { return }
-            let time = distance / config.ascentRate
+            // Use surfaceRate for final ascent to surface (endDepth == 0)
+            let rate = endDepth < DecoUtils.depthTolerance ? config.surfaceRate : config.ascentRate
+            let time = distance / rate
             simEngine.addSegment(startDepth: startDepth, endDepth: endDepth, time: time, gas: gas)
             segments.append(
                 DiveSegment(startDepth: startDepth, endDepth: endDepth, time: time, gas: gas))
@@ -685,10 +688,13 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
 
         // Helper to add a CCR ascent segment
+        // Uses surfaceRate for final ascent to surface, ascentRate otherwise
         func addAscent(from startDepth: Double, to endDepth: Double) throws {
             let distance = startDepth - endDepth
             guard distance > depthTolerance else { return }
-            let time = distance / config.ascentRate
+            // Use surfaceRate for final ascent to surface (endDepth == 0)
+            let rate = endDepth < depthTolerance ? config.surfaceRate : config.ascentRate
+            let time = distance / rate
             // Use effective gas at midpoint for the segment's gas property
             let midDepth = (startDepth + endDepth) / 2.0
             let gas = try getEffectiveGas(at: midDepth)
