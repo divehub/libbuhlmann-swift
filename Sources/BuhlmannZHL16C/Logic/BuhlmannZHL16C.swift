@@ -920,7 +920,9 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 surfacePressure: surfacePressure
             )
 
-            if tts > worstTTS {
+            // Use >= to prefer later checkpoints when TTS is equal
+            // (more tissue loading = true worst case)
+            if tts >= worstTTS {
                 worstTTS = tts
                 worstDepth = checkpoint.depth
                 worstTissueState = checkpoint.compartments
