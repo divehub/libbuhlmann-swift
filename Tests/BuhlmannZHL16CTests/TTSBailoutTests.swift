@@ -9,7 +9,7 @@ final class TTSBailoutTests: XCTestCase {
     /// Test OC Time To Surface calculation
     func testTimeToSurface_OC() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: .air)
+        engine.initializeTissues()
 
         // Dive to 30m for 25 minutes - should require deco
         engine.addSegment(startDepth: 0, endDepth: 30, time: 3, gas: .air)
@@ -34,7 +34,7 @@ final class TTSBailoutTests: XCTestCase {
     /// Test TTS with no deco required
     func testTimeToSurface_NoDeco() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: .air)
+        engine.initializeTissues()
 
         // Short dive within NDL
         engine.addSegment(startDepth: 0, endDepth: 20, time: 2, gas: .air)
@@ -57,7 +57,7 @@ final class TTSBailoutTests: XCTestCase {
     func testCalculateBailoutPlan() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues(gas: diluent)
+        engine.initializeTissues()
 
         // Plan a CCR dive: descend to 50m, stay 25 minutes
         // Now includes setpoint per segment
@@ -107,7 +107,7 @@ final class TTSBailoutTests: XCTestCase {
     func testCalculateBailoutFromCurrentState() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues(gas: diluent)
+        engine.initializeTissues()
 
         // Simulate CCR dive to 40m for 20 minutes
         try engine.addCCRSegment(
@@ -144,7 +144,7 @@ final class TTSBailoutTests: XCTestCase {
     func testBailoutWithDecoGases() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues(gas: diluent)
+        engine.initializeTissues()
 
         // CCR dive: 45m for 25 minutes
         try engine.addCCRSegment(

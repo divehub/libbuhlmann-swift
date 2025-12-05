@@ -6,7 +6,7 @@ final class NDLTests: XCTestCase {
 
     func testNDL() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // NDL at 30m with Air, GF 100/100 (pure M-value)
         // Should be around 15-25 mins.
@@ -26,7 +26,7 @@ final class NDLTests: XCTestCase {
     /// Test NDL values against known reference values
     func testNDLReferenceValues() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // Test NDL at various depths with GF 100 (pure Bühlmann)
         // These are approximate expected values from Bühlmann tables
@@ -40,7 +40,7 @@ final class NDLTests: XCTestCase {
 
         for testCase in testCases {
             var freshEngine = BuhlmannZHL16C()
-            freshEngine.initializeTissues(gas: Gas.air)
+            freshEngine.initializeTissues()
 
             let ndl = freshEngine.ndl(depth: testCase.depth, gas: Gas.air, gf: 1.0)
             XCTAssertGreaterThanOrEqual(
@@ -52,7 +52,7 @@ final class NDLTests: XCTestCase {
 
     func testNoDecoLimit() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // NDL at 30m on Air should be around 15-17 mins (depending on GF)
         // With GF 1.0 (pure M-value), it's around 16-17 mins.
@@ -65,7 +65,7 @@ final class NDLTests: XCTestCase {
     /// Test NDL at 30m with various gradient factors
     func testNDL_30m_VariousGF() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // NDL at 30m with different GFs
         let ndl100 = engine.ndl(depth: 30, gas: Gas.air, gf: 1.00)  // Pure Bühlmann

@@ -431,7 +431,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         // Safety guard against infinite loops
         var iterations = 0
-        let maxIterations = 100_000
+        let maxIterations = 10_000
 
         // Determine First Stop Depth (Anchor for GF Slope)
         let firstStopDepth: Double = simEngine.compartments.reduce(0.0) { maxDepth, compartment in
@@ -653,7 +653,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         // Safety guard against infinite loops
         var iterations = 0
-        let maxIterations = 100_000
+        let maxIterations = 10_000
 
         // Determine First Stop Depth (Anchor for GF Slope)
         let firstStopDepth: Double = simEngine.compartments.reduce(0.0) { maxDepth, compartment in

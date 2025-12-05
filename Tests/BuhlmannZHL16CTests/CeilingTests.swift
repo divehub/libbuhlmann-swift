@@ -6,7 +6,7 @@ final class CeilingTests: XCTestCase {
 
     func testCeiling() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // At surface, ceiling should be 0
         XCTAssertEqual(engine.ceiling(gfLow: 1.0, gfHigh: 1.0), 0.0)
@@ -29,7 +29,7 @@ final class CeilingTests: XCTestCase {
 
     func testCeilingViolation() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
         // 40m for 20 mins
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         engine.addSegment(startDepth: 40, endDepth: 40, time: 18, gas: Gas.air)
@@ -41,7 +41,7 @@ final class CeilingTests: XCTestCase {
 
         // Replay the deco profile and check ceiling at each step
         var replayEngine = BuhlmannZHL16C()
-        replayEngine.initializeTissues(gas: Gas.air)
+        replayEngine.initializeTissues()
         replayEngine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         replayEngine.addSegment(startDepth: 40, endDepth: 40, time: 18, gas: Gas.air)
 
@@ -77,7 +77,7 @@ final class CeilingTests: XCTestCase {
     /// Test that binary search and linear search produce identical results for no-deco scenarios
     func testCeilingAlgorithmsMatch_NoDeco() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // At surface with no loading, both should return 0
         let binaryCeiling = engine.ceilingBinarySearch(gfLow: 0.30, gfHigh: 0.70)
@@ -92,7 +92,7 @@ final class CeilingTests: XCTestCase {
     /// Test that binary search and linear search produce identical results for light deco
     func testCeilingAlgorithmsMatch_LightDeco() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // 30m for 20 minutes - light deco obligation
         engine.addSegment(startDepth: 0, endDepth: 30, time: 1.5, gas: Gas.air)
@@ -118,7 +118,7 @@ final class CeilingTests: XCTestCase {
     /// Test that binary search and linear search produce identical results for heavy deco
     func testCeilingAlgorithmsMatch_HeavyDeco() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // 40m for 30 minutes - significant deco obligation
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -145,7 +145,7 @@ final class CeilingTests: XCTestCase {
     func testCeilingAlgorithmsMatch_DeepTrimix() {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.18, he: 0.45)  // TMX 18/45
-        engine.initializeTissues(gas: trimix)
+        engine.initializeTissues()
 
         // 60m for 20 minutes - deep trimix dive
         engine.addSegment(startDepth: 0, endDepth: 60, time: 3, gas: trimix)
@@ -163,7 +163,7 @@ final class CeilingTests: XCTestCase {
     /// Test that binary search and linear search match with fixed first stop depth
     func testCeilingAlgorithmsMatch_FixedFirstStop() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // 40m for 25 minutes
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -186,7 +186,7 @@ final class CeilingTests: XCTestCase {
     /// Test ceiling algorithms at multiple points during ascent
     func testCeilingAlgorithmsMatch_DuringAscent() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // Build up deco obligation
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -225,7 +225,7 @@ final class CeilingTests: XCTestCase {
     /// Performance comparison test (not a correctness test, just for observation)
     func testCeilingPerformanceComparison() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues(gas: Gas.air)
+        engine.initializeTissues()
 
         // Deep dive with significant deco
         engine.addSegment(startDepth: 0, endDepth: 50, time: 2.5, gas: Gas.air)
@@ -262,7 +262,7 @@ final class CeilingTests: XCTestCase {
     func testCeilingAlgorithmsMatch_VeryDeepDive() {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.12, he: 0.60)  // TMX 12/60 for deep diving
-        engine.initializeTissues(gas: trimix)
+        engine.initializeTissues()
 
         // 100m for 15 minutes - extreme technical dive
         engine.addSegment(startDepth: 0, endDepth: 100, time: 5, gas: trimix)
