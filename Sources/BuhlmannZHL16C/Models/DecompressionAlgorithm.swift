@@ -49,12 +49,26 @@ public struct DecoConfig: Sendable {
 
 /// Protocol defining the interface for a decompression algorithm.
 public protocol DecompressionAlgorithm: Sendable {
+    /// The tissue compartments being tracked.
+    var compartments: [Compartment] { get set }
+
     /// Initialize tissues to surface pressure with a specific gas.
     mutating func initializeTissues(surfacePressure: Double, gas: Gas)
 
     /// Add a dive segment to the simulation (updating tissue loads).
     mutating func addSegment(
         startDepth: Double, endDepth: Double, time: Double, gas: Gas, surfacePressure: Double)
+
+    /// Add a CCR segment to the simulation.
+    /// CCR maintains constant ppO2, so gas fractions vary with depth.
+    mutating func addCCRSegment(
+        startDepth: Double,
+        endDepth: Double,
+        time: Double,
+        diluent: Gas,
+        setpoint: Double,
+        surfacePressure: Double
+    ) throws
 
     /// Calculate current ceiling (shallowest depth allowed) in meters.
     /// - Parameters:
@@ -99,4 +113,59 @@ public protocol DecompressionAlgorithm: Sendable {
         config: DecoConfig,
         surfacePressure: Double
     ) -> [DiveSegment]
+
+    /// Calculate CCR decompression stops required to surface.
+    /// - Parameters:
+    ///   - gfLow: Gradient Factor Low.
+    ///   - gfHigh: Gradient Factor High.
+    ///   - currentDepth: Current depth in meters.
+    ///   - diluent: The CCR diluent gas.
+    ///   - setpoint: Target ppO2 in bar for the ascent.
+    ///   - config: Decompression configuration.
+    ///   - surfacePressure: Surface pressure in bar.
+    /// - Returns: Array of DiveSegments representing the CCR ascent profile.
+    func calculateCCRDecoStops(
+        gfLow: Double,
+        gfHigh: Double,
+        currentDepth: Double,
+        diluent: Gas,
+        setpoint: Double,
+        config: DecoConfig,
+        surfacePressure: Double
+    ) throws -> [DiveSegment]
+
+    /// Calculate Time To Surface for OC gas(es).
+    func timeToSurface(
+        gfLow: Double,
+        gfHigh: Double,
+        currentDepth: Double,
+        bottomGas: Gas,
+        decoGases: [Gas],
+        config: DecoConfig,
+        surfacePressure: Double
+    ) -> Double
+
+    /// Calculate Time To Surface for CCR.
+    func timeToSurfaceCCR(
+        gfLow: Double,
+        gfHigh: Double,
+        currentDepth: Double,
+        diluent: Gas,
+        setpoint: Double,
+        config: DecoConfig,
+        surfacePressure: Double
+    ) throws -> Double
+
+    /// Calculate the OC bailout plan for a CCR dive.
+    /// Finds the point with the longest TTS and generates the bailout schedule.
+    func calculateBailoutPlan(
+        diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)],
+        diluent: Gas,
+        bailoutDecoGases: [Gas],
+        troubleshootingTime: Double,
+        gfLow: Double,
+        gfHigh: Double,
+        config: DecoConfig,
+        surfacePressure: Double
+    ) throws -> BailoutAnalysis
 }

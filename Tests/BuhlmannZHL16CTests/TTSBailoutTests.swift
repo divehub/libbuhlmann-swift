@@ -78,23 +78,23 @@ final class TTSBailoutTests: XCTestCase {
             gfHigh: 0.7
         )
 
-        // Verify worst case is at end of bottom time (max depth + longest exposure)
+        // Verify bailout point is at end of bottom time (max depth + longest exposure)
         XCTAssertEqual(
-            bailout.worstCaseDepth, 50, accuracy: 1,
-            "Worst case should be at bottom depth")
-        XCTAssertGreaterThan(bailout.worstCaseTTS, 0, "Bailout TTS should be positive")
+            bailout.bailoutDepth, 50, accuracy: 1,
+            "Bailout should be at bottom depth")
+        XCTAssertGreaterThan(bailout.bailoutTTS, 0, "Bailout TTS should be positive")
         XCTAssertGreaterThan(
             bailout.bailoutSchedule.count, 0, "Should have bailout deco schedule")
 
         // Verify CCR segments are included
         XCTAssertEqual(
-            bailout.ccrSegmentsToWorstCase.count, 2,
+            bailout.ccrSegmentsToBailout.count, 2,
             "Should have 2 CCR segments (descent + bottom)")
 
         print("\n=== Bailout Analysis (50m/25min CCR) ===")
-        print("Worst-case depth: \(Int(bailout.worstCaseDepth))m")
-        print("Worst-case TTS: \(String(format: "%.1f", bailout.worstCaseTTS)) min")
-        print("CCR segments to bailout point: \(bailout.ccrSegmentsToWorstCase.count)")
+        print("Bailout depth: \(Int(bailout.bailoutDepth))m")
+        print("Bailout TTS: \(String(format: "%.1f", bailout.bailoutTTS)) min")
+        print("CCR segments to bailout point: \(bailout.ccrSegmentsToBailout.count)")
         print("Bailout schedule:")
         for segment in bailout.bailoutSchedule where segment.startDepth == segment.endDepth {
             print(

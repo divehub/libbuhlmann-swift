@@ -812,21 +812,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
     // MARK: - Bailout Planning
 
-    /// Result of a bailout analysis containing the worst-case scenario.
-    public struct BailoutAnalysis: Sendable {
-        /// The depth at which bailout has the longest TTS (worst case).
-        public let worstCaseDepth: Double
-        /// The TTS at the worst-case depth (including troubleshooting time).
-        public let worstCaseTTS: Double
-        /// The CCR segments from dive start up to the worst-case bailout point.
-        public let ccrSegmentsToWorstCase: [DiveSegment]
-        /// The OC deco schedule for bailout from the worst-case depth (includes troubleshooting segment).
-        public let bailoutSchedule: [DiveSegment]
-        /// The tissue state at the worst-case point (for display/analysis).
-        public let tissueState: [Compartment]
-    }
-
-    /// Calculate the worst-case OC bailout plan for a CCR dive.
+    /// Calculate the OC bailout plan for a CCR dive.
     ///
     /// This analyzes the entire dive profile to find the point where OC bailout
     /// would result in the longest Time To Surface (TTS). This is typically at
@@ -846,7 +832,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfHigh: Gradient Factor High.
     ///   - config: Decompression configuration (includes gas switch settings).
     ///   - surfacePressure: Surface pressure in bar.
-    /// - Returns: BailoutAnalysis containing worst-case scenario and full bailout schedule.
+    /// - Returns: BailoutAnalysis containing bailout point and full bailout schedule.
     public func calculateBailoutPlan(
         diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)],
         diluent: Gas,
@@ -857,12 +843,12 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         config: DecoConfig = .default,
         surfacePressure: Double = 1.01325
     ) throws -> BailoutAnalysis {
-        // Simulate the dive and find the worst-case bailout point
+        // Simulate the dive and find the bailout point (longest TTS)
         var simEngine = self
-        var worstTTS: Double = 0
-        var worstDepth: Double = 0
-        var worstTissueState: [Compartment] = simEngine.compartments
-        var worstSegmentIndex: Int = 0
+        var maxTTS: Double = 0
+        var bailoutDepth: Double = 0
+        var bailoutTissueState: [Compartment] = simEngine.compartments
+        var bailoutSegmentIndex: Int = 0
 
         // Sample points to check TTS (at each segment end)
         // Each checkpoint stores: depth, compartments, and the segment index
@@ -925,18 +911,18 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             )
 
             // Use >= to prefer later checkpoints when TTS is equal
-            // (more tissue loading = true worst case)
-            if tts >= worstTTS {
-                worstTTS = tts
-                worstDepth = checkpoint.depth
-                worstTissueState = checkpoint.compartments
-                worstSegmentIndex = checkpoint.segmentIndex
+            // (more tissue loading = true bailout point)
+            if tts >= maxTTS {
+                maxTTS = tts
+                bailoutDepth = checkpoint.depth
+                bailoutTissueState = checkpoint.compartments
+                bailoutSegmentIndex = checkpoint.segmentIndex
             }
         }
 
-        // Generate the full bailout schedule from worst-case point
+        // Generate the full bailout schedule from bailout point
         var bailoutEngine = BuhlmannZHL16C()
-        bailoutEngine.compartments = worstTissueState
+        bailoutEngine.compartments = bailoutTissueState
         bailoutEngine.waterDensity = self.waterDensity
 
         var bailoutSchedule: [DiveSegment] = []
@@ -945,16 +931,16 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // This simulates staying at depth to troubleshoot the rebreather failure
         if troubleshootingTime > 0 {
             bailoutEngine.addSegment(
-                startDepth: worstDepth,
-                endDepth: worstDepth,
+                startDepth: bailoutDepth,
+                endDepth: bailoutDepth,
                 time: troubleshootingTime,
                 gas: diluent,
                 surfacePressure: surfacePressure
             )
             bailoutSchedule.append(
                 DiveSegment(
-                    startDepth: worstDepth,
-                    endDepth: worstDepth,
+                    startDepth: bailoutDepth,
+                    endDepth: bailoutDepth,
                     time: troubleshootingTime,
                     gas: diluent
                 )
@@ -965,7 +951,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         let decoStops = bailoutEngine.calculateDecoStops(
             gfLow: gfLow,
             gfHigh: gfHigh,
-            currentDepth: worstDepth,
+            currentDepth: bailoutDepth,
             bottomGas: diluent,
             decoGases: bailoutDecoGases,
             config: config,
@@ -974,17 +960,16 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         bailoutSchedule.append(contentsOf: decoStops)
 
-        let tts = bailoutSchedule.reduce(0) { $0 + $1.time }
+        let totalTTS = bailoutSchedule.reduce(0) { $0 + $1.time }
 
-        // Get CCR segments up to and including the worst-case point
-        let ccrSegmentsToWorstCase = Array(ccrSegments.prefix(worstSegmentIndex + 1))
+        // Get CCR segments up to and including the bailout point
+        let ccrSegmentsToBailout = Array(ccrSegments.prefix(bailoutSegmentIndex + 1))
 
         return BailoutAnalysis(
-            worstCaseDepth: worstDepth,
-            worstCaseTTS: tts,
-            ccrSegmentsToWorstCase: ccrSegmentsToWorstCase,
+            bailoutDepth: bailoutDepth,
+            bailoutTTS: totalTTS,
+            ccrSegmentsToBailout: ccrSegmentsToBailout,
             bailoutSchedule: bailoutSchedule,
-            tissueState: worstTissueState
         )
     }
 
