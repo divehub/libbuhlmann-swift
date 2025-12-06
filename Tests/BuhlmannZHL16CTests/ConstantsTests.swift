@@ -55,7 +55,6 @@ final class ConstantsTests: XCTestCase {
     /// Test water vapor pressure handling
     func testWaterVaporPressure() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Water vapor pressure is ~0.0627 bar (47 mmHg at 37°C)
         // Initial tissue loading should account for this

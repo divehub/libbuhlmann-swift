@@ -6,7 +6,6 @@ final class DecoTests: XCTestCase {
 
     func testDecoStops() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // 40m for 20 mins
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -22,7 +21,6 @@ final class DecoTests: XCTestCase {
 
     func testGF50_70_Discrepancy() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // 30m for 20 mins (2 min descent, 18 min hold)
         engine.addSegment(startDepth: 0, endDepth: 30, time: 2, gas: Gas.air)  // 2 min descent
@@ -56,7 +54,6 @@ final class DecoTests: XCTestCase {
     /// This tests a realistic recreational-to-light-deco dive profile
     func testScenario_30m25min_Air_GF3070() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Simulate realistic dive profile
         // Descent: 20m/min = 1.5 min to reach 30m
@@ -124,7 +121,6 @@ final class DecoTests: XCTestCase {
         // Standard ascent configuration (9m/min)
         let standardConfig = DecoConfig(ascentRate: 9.0)
         var standardEngine = BuhlmannZHL16C()
-        standardEngine.initializeTissues()
         standardEngine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         standardEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: Gas.air)
         let standardDeco = try standardEngine.calculateDecoStops(
@@ -134,7 +130,6 @@ final class DecoTests: XCTestCase {
         // Fast ascent configuration
         let fastConfig = DecoConfig(ascentRate: 18.0)
         var fastEngine = BuhlmannZHL16C()
-        fastEngine.initializeTissues()
         fastEngine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
         fastEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: Gas.air)
         let fastDeco = try fastEngine.calculateDecoStops(
@@ -158,7 +153,6 @@ final class DecoTests: XCTestCase {
     /// Test deco gas switching
     func testDecoGasSwitching() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Deep air dive
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -192,7 +186,6 @@ final class DecoTests: XCTestCase {
     /// Comprehensive test with expected values for algorithm validation
     func testExpectedDecoValues() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Standard reference dive: 40m for 20 min on air
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -223,7 +216,6 @@ final class DecoTests: XCTestCase {
     func testTrimix() throws {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.18, he: 0.45)  // 18/45
-        engine.initializeTissues()
 
         // Deep dive: 60m for 20 mins
         engine.addSegment(startDepth: 0, endDepth: 60, time: 3, gas: trimix)
@@ -237,7 +229,6 @@ final class DecoTests: XCTestCase {
 
     func testMaxDurationExceeded() throws {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Create an extreme dive scenario that would require >24 hours of deco
         // Very deep dive with air (bad choice) would create huge deco obligation

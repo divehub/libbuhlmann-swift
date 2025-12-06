@@ -57,8 +57,7 @@ final class BuhlmannVerificationTests: XCTestCase {
         // M_0 for fast tissues is high.
         // We need to find the limiting compartment.
 
-        var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
+        let engine = BuhlmannZHL16C()
 
         // GF 1.0
         let ndl = engine.ndl(depth: 40, gas: Gas.air, gf: 1.0)

@@ -8,7 +8,6 @@ final class CCRTests: XCTestCase {
     func testCCRSegmentConstantDepth() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues()
 
         // Add CCR segment at constant 30m for 20 minutes
         try engine.addCCRSegment(
@@ -16,7 +15,6 @@ final class CCRTests: XCTestCase {
 
         // Compare with equivalent OC segment using effective gas
         var engineOC = BuhlmannZHL16C()
-        engineOC.initializeTissues()
         let effectiveGas = try Gas.effectiveGas(atDepth: 30, setpoint: 1.3, diluent: diluent)
         engineOC.addSegment(startDepth: 30, endDepth: 30, time: 20, gas: effectiveGas)
 
@@ -35,7 +33,6 @@ final class CCRTests: XCTestCase {
     func testCCRSegmentDepthChange() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues()
 
         // Descend from 0 to 40m in 4 minutes (10m/min)
         try engine.addCCRSegment(
@@ -56,7 +53,6 @@ final class CCRTests: XCTestCase {
     func testCCRDecoStops() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)  // Trimix 21/35
-        engine.initializeTissues()
 
         // Typical CCR dive: 40m for 30 minutes
         // Use setpoint 1.3 throughout - at 40m, fInert needed is 74.3%, diluent provides 79%
@@ -104,7 +100,6 @@ final class CCRTests: XCTestCase {
         // CCR dive
         var ccrEngine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        ccrEngine.initializeTissues()
         try ccrEngine.addCCRSegment(
             startDepth: 0, endDepth: 40, time: 4, diluent: diluent, setpoint: 1.3)
         try ccrEngine.addCCRSegment(
@@ -119,7 +114,6 @@ final class CCRTests: XCTestCase {
 
         // OC dive with same diluent as bottom gas (no deco gas switches for fair comparison)
         var ocEngine = BuhlmannZHL16C()
-        ocEngine.initializeTissues()
         ocEngine.addSegment(startDepth: 0, endDepth: 40, time: 4, gas: diluent)
         ocEngine.addSegment(startDepth: 40, endDepth: 40, time: 20, gas: diluent)
 
@@ -143,7 +137,6 @@ final class CCRTests: XCTestCase {
     func testTimeToSurfaceCCR() throws {
         var engine = BuhlmannZHL16C()
         let diluent = try Gas(o2: 0.21, he: 0.35)
-        engine.initializeTissues()
 
         // CCR dive: 40m for 30 minutes
         try engine.addCCRSegment(

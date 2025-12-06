@@ -12,15 +12,29 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     // Water vapor pressure in lungs (approx 0.0627 bar)
     private let waterVaporPressure = 0.0627
 
-    // Water density in kg/m^3 (default 1030 for salt water)
-    public var waterDensity: Double = 1030.0
+    // Surface pressure in bar for this dive
+    public let surfacePressure: Double
 
-    public init() {
+    // Water density in kg/m³ for depth-pressure conversions
+    private let waterDensity: Double
+
+    // MARK: - Initializers
+
+    /// Create an engine initialized at standard surface conditions.
+    /// - Parameters:
+    ///   - surfacePressure: Surface pressure in bar (default 1.01325 = 1 ATM).
+    ///   - gas: Surface gas the diver is breathing (default Air).
+    ///   - waterDensity: Water density in kg/m³ (default 1025.0 for salt water).
+    public init(
+        surfacePressure: Double = 1.01325,
+        gas: Gas = .air,
+        waterDensity: Double = 1025.0
+    ) {
+        self.surfacePressure = surfacePressure
+        self.waterDensity = waterDensity
         self.compartments = Compartment.createAll()
-    }
 
-    /// Initialize tissues to surface pressure with a specific gas (usually air).
-    public mutating func initializeTissues(surfacePressure: Double = 1.01325, gas: Gas = .air) {
+        // Initialize tissues to surface equilibrium
         let inspiredPressure = surfacePressure - waterVaporPressure
         let pN2 = inspiredPressure * gas.n2
         let pHe = inspiredPressure * gas.he
@@ -31,16 +45,25 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
     }
 
+    /// Create an engine from existing compartment state (for cloning/evaluation).
+    /// - Parameters:
+    ///   - compartments: Pre-loaded tissue compartments.
+    ///   - surfacePressure: Surface pressure in bar.
+    ///   - waterDensity: Water density in kg/m³.
+    public init(compartments: [Compartment], surfacePressure: Double = 1.01325, waterDensity: Double) {
+        self.compartments = compartments
+        self.surfacePressure = surfacePressure
+        self.waterDensity = waterDensity
+    }
+
     /// Apply Schreiner equation for a segment.
     /// - Parameters:
     ///   - startDepth: Depth at start of segment (meters).
     ///   - endDepth: Depth at end of segment (meters).
     ///   - time: Duration of segment (minutes).
     ///   - gas: Breathing gas.
-    ///   - surfacePressure: Surface pressure (bar).
     public mutating func addSegment(
-        startDepth: Double, endDepth: Double, time: Double, gas: Gas,
-        surfacePressure: Double = 1.01325
+        startDepth: Double, endDepth: Double, time: Double, gas: Gas
     ) {
         let startPressure = PressureConverter.metersToBar(
             depth: startDepth, surfacePressure: surfacePressure, density: waterDensity)
@@ -93,12 +116,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
     /// Run a full dive profile.
     /// - Parameter profile: The dive profile to execute.
-    /// - Parameter surfacePressure: Surface pressure (bar).
-    public mutating func runProfile(_ profile: DiveProfile, surfacePressure: Double = 1.01325) {
+    public mutating func runProfile(_ profile: DiveProfile) {
         for segment in profile.segments {
             addSegment(
                 startDepth: segment.startDepth, endDepth: segment.endDepth, time: segment.time,
-                gas: segment.gas, surfacePressure: surfacePressure)
+                gas: segment.gas)
         }
     }
 
@@ -108,19 +130,16 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Gradient Factor Low (e.g., 0.30). Must be in range (0, 1].
     ///   - gfHigh: Gradient Factor High (e.g., 0.85). Must be in range (0, 1] and >= gfLow.
     ///   - fixedFirstStopDepth: Optional fixed depth to anchor GF slope.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Ceiling depth in meters.
     public func ceiling(
         gfLow: Double,
         gfHigh: Double,
-        fixedFirstStopDepth: Double? = nil,
-        surfacePressure: Double = 1.01325
+        fixedFirstStopDepth: Double? = nil
     ) -> Double {
         return ceilingBinarySearch(
             gfLow: gfLow,
             gfHigh: gfHigh,
-            fixedFirstStopDepth: fixedFirstStopDepth,
-            surfacePressure: surfacePressure
+            fixedFirstStopDepth: fixedFirstStopDepth
         )
     }
 
@@ -130,13 +149,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Gradient Factor Low (e.g., 0.30). Must be in range (0, 1].
     ///   - gfHigh: Gradient Factor High (e.g., 0.85). Must be in range (0, 1] and >= gfLow.
     ///   - fixedFirstStopDepth: Optional fixed depth to anchor GF slope.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Ceiling depth in meters.
     public func ceilingBinarySearch(
         gfLow: Double,
         gfHigh: Double,
-        fixedFirstStopDepth: Double? = nil,
-        surfacePressure: Double = 1.01325
+        fixedFirstStopDepth: Double? = nil
     ) -> Double {
         // Validate GF parameters
         let clampedGfLow = max(0.01, min(1.0, gfLow))
@@ -172,7 +189,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // First, verify the deep bound is safe (it should be at firstStopDepth with GF_Low)
         if !isDepthSafe(
             hi, gfLow: clampedGfLow, gfHigh: clampedGfHigh,
-            firstStopDepth: firstStopDepth, surfacePressure: surfacePressure)
+            firstStopDepth: firstStopDepth)
         {
             // Edge case: even firstStopDepth isn't safe (shouldn't happen normally)
             // Fall back to firstStopDepth
@@ -182,7 +199,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Check if surface is safe
         if isDepthSafe(
             0, gfLow: clampedGfLow, gfHigh: clampedGfHigh,
-            firstStopDepth: firstStopDepth, surfacePressure: surfacePressure)
+            firstStopDepth: firstStopDepth)
         {
             return 0.0
         }
@@ -193,7 +210,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             let mid = (lo + hi) / 2.0
             if isDepthSafe(
                 mid, gfLow: clampedGfLow, gfHigh: clampedGfHigh,
-                firstStopDepth: firstStopDepth, surfacePressure: surfacePressure)
+                firstStopDepth: firstStopDepth)
             {
                 hi = mid  // mid is safe, try shallower
             } else {
@@ -211,13 +228,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Gradient Factor Low (e.g., 0.30). Must be in range (0, 1].
     ///   - gfHigh: Gradient Factor High (e.g., 0.85). Must be in range (0, 1] and >= gfLow.
     ///   - fixedFirstStopDepth: Optional fixed depth to anchor GF slope.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Ceiling depth in meters.
     public func ceilingLinearSearch(
         gfLow: Double,
         gfHigh: Double,
-        fixedFirstStopDepth: Double? = nil,
-        surfacePressure: Double = 1.01325
+        fixedFirstStopDepth: Double? = nil
     ) -> Double {
         // Validate GF parameters
         let clampedGfLow = max(0.01, min(1.0, gfLow))
@@ -276,14 +291,12 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Clamped GF Low value.
     ///   - gfHigh: Clamped GF High value.
     ///   - firstStopDepth: The anchor depth for GF slope.
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: True if all compartments are within M-gradient limits at this depth.
     private func isDepthSafe(
         _ depth: Double,
         gfLow: Double,
         gfHigh: Double,
-        firstStopDepth: Double,
-        surfacePressure: Double
+        firstStopDepth: Double
     ) -> Bool {
         let epsilon = 1e-9
 
@@ -313,9 +326,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - depth: Current depth in meters.
     ///   - gas: Breathing gas.
     ///   - gf: Gradient Factor to use for the surfacing limit (usually GF_High).
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: NDL in minutes. Returns 999 if NDL exceeds calculation limit.
-    public func ndl(depth: Double, gas: Gas, gf: Double, surfacePressure: Double = 1.01325)
+    public func ndl(depth: Double, gas: Gas, gf: Double)
         -> Double
     {
         // Validate inputs
@@ -324,8 +336,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // 1. Check if we are already in deco
         // For NDL check, we use the provided GF as a fixed value
         if ceiling(
-            gfLow: clampedGf, gfHigh: clampedGf, fixedFirstStopDepth: nil,
-            surfacePressure: surfacePressure) > 0
+            gfLow: clampedGf, gfHigh: clampedGf, fixedFirstStopDepth: nil) > 0
         {
             return 0
         }
@@ -412,7 +423,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - bottomGas: The gas used at the bottom (fallback if no deco gas available).
     ///   - decoGases: Available decompression gases with their max depths set.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Array of DiveSegments representing the ascent profile.
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     ///
@@ -427,13 +437,12 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         currentDepth: Double,
         bottomGas: Gas,
         decoGases: [Gas],
-        config: DecoConfig,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig
     ) throws -> [DiveSegment] {
         // Maximum allowed dive duration: 24 hours = 1440 minutes
         let maxDuration: Double = 1440.0
         var totalTime: Double = 0.0
-        
+
         var segments: [DiveSegment] = []
         var depth = currentDepth
         var currentGas = bottomGas
@@ -456,8 +465,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Helper to get current ceiling
         func getCeiling() -> Double {
             simEngine.ceiling(
-                gfLow: gfLow, gfHigh: gfHigh, fixedFirstStopDepth: firstStopDepth,
-                surfacePressure: surfacePressure)
+                gfLow: gfLow, gfHigh: gfHigh, fixedFirstStopDepth: firstStopDepth)
         }
 
         // Helper to add a stop segment
@@ -593,14 +601,12 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - time: Duration of segment (minutes).
     ///   - diluent: The CCR diluent gas (provides N2/He ratios).
     ///   - setpoint: Target ppO2 in bar (e.g., 1.3).
-    ///   - surfacePressure: Surface pressure (bar).
     public mutating func addCCRSegment(
         startDepth: Double,
         endDepth: Double,
         time: Double,
         diluent: Gas,
-        setpoint: Double,
-        surfacePressure: Double = 1.01325
+        setpoint: Double
     ) throws {
         guard time > 0 else { return }
 
@@ -610,8 +616,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 atDepth: startDepth, setpoint: setpoint, diluent: diluent,
                 surfacePressure: surfacePressure)
             addSegment(
-                startDepth: startDepth, endDepth: endDepth, time: time, gas: effectiveGas,
-                surfacePressure: surfacePressure)
+                startDepth: startDepth, endDepth: endDepth, time: time, gas: effectiveGas)
             return
         }
 
@@ -632,8 +637,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 atDepth: midDepth, setpoint: setpoint, diluent: diluent,
                 surfacePressure: surfacePressure)
             addSegment(
-                startDepth: currentDepth, endDepth: nextDepth, time: timeStep, gas: effectiveGas,
-                surfacePressure: surfacePressure)
+                startDepth: currentDepth, endDepth: nextDepth, time: timeStep, gas: effectiveGas)
             currentDepth = nextDepth
         }
     }
@@ -650,7 +654,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - diluent: The CCR diluent gas.
     ///   - setpoint: Target ppO2 in bar for the ascent.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325).
     /// - Returns: Array of DiveSegments representing the ascent profile.
     /// - Throws: `GasError.cannotDilute` if the diluent cannot achieve the setpoint at depth.
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
@@ -660,12 +663,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         currentDepth: Double,
         diluent: Gas,
         setpoint: Double,
-        config: DecoConfig,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig
     ) throws -> [DiveSegment] {
         // Constants for floating-point comparisons
         let depthTolerance = 0.01  // 1 cm for depth comparisons
-        
+
         // Maximum allowed dive duration: 24 hours = 1440 minutes
         let maxDuration: Double = 1440.0
         var totalTime: Double = 0.0
@@ -691,8 +693,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Helper to get current ceiling
         func getCeiling() -> Double {
             simEngine.ceiling(
-                gfLow: gfLow, gfHigh: gfHigh, fixedFirstStopDepth: firstStopDepth,
-                surfacePressure: surfacePressure)
+                gfLow: gfLow, gfHigh: gfHigh, fixedFirstStopDepth: firstStopDepth)
         }
 
         // Helper to get effective gas at a depth
@@ -711,7 +712,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             let gas = try getEffectiveGas(at: stopDepth)
             try simEngine.addCCRSegment(
                 startDepth: stopDepth, endDepth: stopDepth, time: time,
-                diluent: diluent, setpoint: setpoint, surfacePressure: surfacePressure)
+                diluent: diluent, setpoint: setpoint)
             segments.append(
                 DiveSegment(startDepth: stopDepth, endDepth: stopDepth, time: time, gas: gas))
         }
@@ -733,7 +734,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             let gas = try getEffectiveGas(at: midDepth)
             try simEngine.addCCRSegment(
                 startDepth: startDepth, endDepth: endDepth, time: time,
-                diluent: diluent, setpoint: setpoint, surfacePressure: surfacePressure)
+                diluent: diluent, setpoint: setpoint)
             segments.append(
                 DiveSegment(startDepth: startDepth, endDepth: endDepth, time: time, gas: gas))
         }
@@ -791,7 +792,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - bottomGas: The gas used at bottom (fallback if no deco gas available).
     ///   - decoGases: Available decompression gases with their max depths set.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Total time to surface in minutes.
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func timeToSurface(
@@ -800,8 +800,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         currentDepth: Double,
         bottomGas: Gas,
         decoGases: [Gas] = [],
-        config: DecoConfig = .default,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig = .default
     ) throws -> Double {
         let decoStops = try calculateDecoStops(
             gfLow: gfLow,
@@ -809,8 +808,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             currentDepth: currentDepth,
             bottomGas: bottomGas,
             decoGases: decoGases,
-            config: config,
-            surfacePressure: surfacePressure
+            config: config
         )
         return decoStops.reduce(0) { $0 + $1.time }
     }
@@ -826,7 +824,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - diluent: The CCR diluent gas.
     ///   - setpoint: Target ppO2 in bar for the ascent.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Total time to surface in minutes.
     /// - Throws: `GasError.cannotDilute` if the diluent cannot achieve the setpoint at depth.
     public func timeToSurfaceCCR(
@@ -835,8 +832,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         currentDepth: Double,
         diluent: Gas,
         setpoint: Double,
-        config: DecoConfig = .default,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig = .default
     ) throws -> Double {
         let decoStops = try calculateCCRDecoStops(
             gfLow: gfLow,
@@ -844,8 +840,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             currentDepth: currentDepth,
             diluent: diluent,
             setpoint: setpoint,
-            config: config,
-            surfacePressure: surfacePressure
+            config: config
         )
         return decoStops.reduce(0) { $0 + $1.time }
     }
@@ -871,7 +866,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Gradient Factor Low.
     ///   - gfHigh: Gradient Factor High.
     ///   - config: Decompression configuration (includes gas switch settings).
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: BailoutAnalysis containing bailout point and full bailout schedule.
     public func calculateBailoutPlan(
         diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)],
@@ -880,8 +874,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         troubleshootingTime: Double = 0,
         gfLow: Double,
         gfHigh: Double,
-        config: DecoConfig = .default,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig = .default
     ) throws -> BailoutAnalysis {
         // Simulate the dive and find the bailout point (longest TTS)
         var simEngine = self
@@ -905,8 +898,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 endDepth: segment.endDepth,
                 time: segment.time,
                 diluent: diluent,
-                setpoint: segment.setpoint,
-                surfacePressure: surfacePressure
+                setpoint: segment.setpoint
             )
 
             // Store the CCR segment with effective gas at midpoint for display
@@ -936,9 +928,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
         // Evaluate TTS at each checkpoint to find worst case
         for checkpoint in checkPoints {
-            var evalEngine = BuhlmannZHL16C()
-            evalEngine.compartments = checkpoint.compartments
-            evalEngine.waterDensity = self.waterDensity
+            let evalEngine = BuhlmannZHL16C(
+                compartments: checkpoint.compartments,
+                surfacePressure: surfacePressure,
+                waterDensity: self.waterDensity
+            )
 
             let tts = try evalEngine.timeToSurface(
                 gfLow: gfLow,
@@ -946,8 +940,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 currentDepth: checkpoint.depth,
                 bottomGas: diluent,
                 decoGases: bailoutDecoGases,
-                config: config,
-                surfacePressure: surfacePressure
+                config: config
             )
 
             // Use >= to prefer later checkpoints when TTS is equal
@@ -961,9 +954,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         }
 
         // Generate the full bailout schedule from bailout point
-        var bailoutEngine = BuhlmannZHL16C()
-        bailoutEngine.compartments = bailoutTissueState
-        bailoutEngine.waterDensity = self.waterDensity
+        var bailoutEngine = BuhlmannZHL16C(
+            compartments: bailoutTissueState,
+            surfacePressure: surfacePressure,
+            waterDensity: self.waterDensity
+        )
 
         var bailoutSchedule: [DiveSegment] = []
 
@@ -974,8 +969,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 startDepth: bailoutDepth,
                 endDepth: bailoutDepth,
                 time: troubleshootingTime,
-                gas: diluent,
-                surfacePressure: surfacePressure
+                gas: diluent
             )
             bailoutSchedule.append(
                 DiveSegment(
@@ -994,8 +988,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             currentDepth: bailoutDepth,
             bottomGas: diluent,
             decoGases: bailoutDecoGases,
-            config: config,
-            surfacePressure: surfacePressure
+            config: config
         )
 
         bailoutSchedule.append(contentsOf: decoStops)
@@ -1025,7 +1018,6 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - gfLow: Gradient Factor Low.
     ///   - gfHigh: Gradient Factor High.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Array of DiveSegments representing the OC bailout ascent profile.
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     public func calculateBailoutFromCurrentState(
@@ -1034,8 +1026,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         bailoutDecoGases: [Gas] = [],
         gfLow: Double,
         gfHigh: Double,
-        config: DecoConfig = .default,
-        surfacePressure: Double = 1.01325
+        config: DecoConfig = .default
     ) throws -> [DiveSegment] {
         return try calculateDecoStops(
             gfLow: gfLow,
@@ -1043,8 +1034,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             currentDepth: currentDepth,
             bottomGas: bailoutGas,
             decoGases: bailoutDecoGases,
-            config: config,
-            surfacePressure: surfacePressure
+            config: config
         )
     }
 }

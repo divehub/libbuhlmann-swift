@@ -56,12 +56,12 @@ public protocol DecompressionAlgorithm: Sendable {
     /// The tissue compartments being tracked.
     var compartments: [Compartment] { get set }
 
-    /// Initialize tissues to surface pressure with a specific gas.
-    mutating func initializeTissues(surfacePressure: Double, gas: Gas)
+    /// Surface pressure in bar (set at initialization).
+    var surfacePressure: Double { get }
 
     /// Add a dive segment to the simulation (updating tissue loads).
     mutating func addSegment(
-        startDepth: Double, endDepth: Double, time: Double, gas: Gas, surfacePressure: Double)
+        startDepth: Double, endDepth: Double, time: Double, gas: Gas)
 
     /// Add a CCR segment to the simulation.
     /// CCR maintains constant ppO2, so gas fractions vary with depth.
@@ -70,8 +70,7 @@ public protocol DecompressionAlgorithm: Sendable {
         endDepth: Double,
         time: Double,
         diluent: Gas,
-        setpoint: Double,
-        surfacePressure: Double
+        setpoint: Double
     ) throws
 
     /// Calculate current ceiling (shallowest depth allowed) in meters.
@@ -79,10 +78,9 @@ public protocol DecompressionAlgorithm: Sendable {
     ///   - gfLow: Gradient Factor Low.
     ///   - gfHigh: Gradient Factor High.
     ///   - fixedFirstStopDepth: Optional fixed depth to anchor GF slope.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Ceiling depth in meters.
     func ceiling(
-        gfLow: Double, gfHigh: Double, fixedFirstStopDepth: Double?, surfacePressure: Double
+        gfLow: Double, gfHigh: Double, fixedFirstStopDepth: Double?
     ) -> Double
 
     /// Calculate No Decompression Limit (NDL) in minutes.
@@ -90,9 +88,8 @@ public protocol DecompressionAlgorithm: Sendable {
     ///   - depth: Current depth in meters.
     ///   - gas: Breathing gas.
     ///   - gf: Gradient Factor to use for the surfacing limit (usually GF_High).
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: NDL in minutes. Returns 999 if NDL exceeds calculation limit.
-    func ndl(depth: Double, gas: Gas, gf: Double, surfacePressure: Double) -> Double
+    func ndl(depth: Double, gas: Gas, gf: Double) -> Double
 
     /// Calculate decompression stops required to surface (single gas).
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
@@ -107,7 +104,6 @@ public protocol DecompressionAlgorithm: Sendable {
     ///   - bottomGas: The gas used at the bottom (fallback if no deco gas available).
     ///   - decoGases: Available decompression gases with their max depths set.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar (default 1.01325 for sea level).
     /// - Returns: Array of DiveSegments representing the ascent profile.
     /// - Throws: `DecoError.maxDurationExceeded` if the calculated dive exceeds 24 hours.
     func calculateDecoStops(
@@ -116,8 +112,7 @@ public protocol DecompressionAlgorithm: Sendable {
         currentDepth: Double,
         bottomGas: Gas,
         decoGases: [Gas],
-        config: DecoConfig,
-        surfacePressure: Double
+        config: DecoConfig
     ) throws -> [DiveSegment]
 
     /// Calculate CCR decompression stops required to surface.
@@ -128,7 +123,6 @@ public protocol DecompressionAlgorithm: Sendable {
     ///   - diluent: The CCR diluent gas.
     ///   - setpoint: Target ppO2 in bar for the ascent.
     ///   - config: Decompression configuration.
-    ///   - surfacePressure: Surface pressure in bar.
     /// - Returns: Array of DiveSegments representing the CCR ascent profile.
     func calculateCCRDecoStops(
         gfLow: Double,
@@ -136,8 +130,7 @@ public protocol DecompressionAlgorithm: Sendable {
         currentDepth: Double,
         diluent: Gas,
         setpoint: Double,
-        config: DecoConfig,
-        surfacePressure: Double
+        config: DecoConfig
     ) throws -> [DiveSegment]
 
     /// Calculate Time To Surface for OC gas(es).
@@ -148,8 +141,7 @@ public protocol DecompressionAlgorithm: Sendable {
         currentDepth: Double,
         bottomGas: Gas,
         decoGases: [Gas],
-        config: DecoConfig,
-        surfacePressure: Double
+        config: DecoConfig
     ) throws -> Double
 
     /// Calculate Time To Surface for CCR.
@@ -159,8 +151,7 @@ public protocol DecompressionAlgorithm: Sendable {
         currentDepth: Double,
         diluent: Gas,
         setpoint: Double,
-        config: DecoConfig,
-        surfacePressure: Double
+        config: DecoConfig
     ) throws -> Double
 
     /// Calculate the OC bailout plan for a CCR dive.
@@ -172,7 +163,6 @@ public protocol DecompressionAlgorithm: Sendable {
         troubleshootingTime: Double,
         gfLow: Double,
         gfHigh: Double,
-        config: DecoConfig,
-        surfacePressure: Double
+        config: DecoConfig
     ) throws -> BailoutAnalysis
 }

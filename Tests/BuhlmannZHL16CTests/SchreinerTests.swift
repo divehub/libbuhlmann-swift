@@ -6,7 +6,6 @@ final class SchreinerTests: XCTestCase {
 
     func testSchreinerDecay() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Instantaneous descent to 30m (4 bar)
         // Then stay for 10 mins.
@@ -38,7 +37,6 @@ final class SchreinerTests: XCTestCase {
     /// Test Schreiner equation with precise expected values
     func testSchreinerEquationPrecision() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // At 30m for 4 minutes (1 half-time for compartment 1)
         let depth = 30.0
@@ -60,8 +58,7 @@ final class SchreinerTests: XCTestCase {
     }
 
     func testInitialization() {
-        var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
+        let engine = BuhlmannZHL16C()
 
         // Check first compartment (fastest)
         // pN2 = (1.01325 - 0.0627) * 0.79 = 0.7509
@@ -71,7 +68,6 @@ final class SchreinerTests: XCTestCase {
 
     func testTissueLoading() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Descent to 30m in 2 mins (15m/min)
         engine.addSegment(startDepth: 0, endDepth: 30, time: 2, gas: Gas.air)
@@ -91,7 +87,6 @@ final class SchreinerTests: XCTestCase {
     /// Test that off-gassing works correctly during ascent
     func testOffGassingDuringAscent() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Load tissues at 40m
         engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
@@ -120,7 +115,6 @@ final class SchreinerTests: XCTestCase {
     func testHeliumKinetics() {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.21, he: 0.35)  // TMX 21/35
-        engine.initializeTissues()  // Start saturated with air
 
         // Descend on trimix
         engine.addSegment(startDepth: 0, endDepth: 50, time: 2.5, gas: trimix)
@@ -135,7 +129,6 @@ final class SchreinerTests: XCTestCase {
 
         // Also verify N2 loading is reduced compared to air dive
         var airEngine = BuhlmannZHL16C()
-        airEngine.initializeTissues()
         airEngine.addSegment(startDepth: 0, endDepth: 50, time: 2.5, gas: Gas.air)
         airEngine.addSegment(startDepth: 50, endDepth: 50, time: 20, gas: Gas.air)
 
@@ -148,7 +141,6 @@ final class SchreinerTests: XCTestCase {
     func testMValueMixedGas() {
         var engine = BuhlmannZHL16C()
         let trimix = try! Gas(o2: 0.18, he: 0.45)  // TMX 18/45
-        engine.initializeTissues()
 
         // Load tissues
         engine.addSegment(startDepth: 0, endDepth: 60, time: 3, gas: trimix)

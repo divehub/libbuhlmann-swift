@@ -6,7 +6,6 @@ final class ProfileTests: XCTestCase {
 
     func testMultiLevelProfile() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         var profile = DiveProfile()
         // Descent to 30m
@@ -28,7 +27,6 @@ final class ProfileTests: XCTestCase {
 
     func testGasSwitching() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Deep dive on Air to 50m
         engine.addSegment(startDepth: 0, endDepth: 50, time: 3, gas: Gas.air)
@@ -47,7 +45,6 @@ final class ProfileTests: XCTestCase {
         let pN2WithSwitch = engine.compartments[0].pN2
 
         var controlEngine = BuhlmannZHL16C()
-        controlEngine.initializeTissues()
         controlEngine.addSegment(startDepth: 0, endDepth: 50, time: 3, gas: Gas.air)
         controlEngine.addSegment(startDepth: 50, endDepth: 50, time: 20, gas: Gas.air)
         controlEngine.addSegment(startDepth: 50, endDepth: 21, time: 3, gas: Gas.air)
@@ -61,7 +58,6 @@ final class ProfileTests: XCTestCase {
 
     func testMultiLevelDive() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // 30m for 15 mins
         engine.addSegment(startDepth: 0, endDepth: 30, time: 1.5, gas: Gas.air)
@@ -79,7 +75,6 @@ final class ProfileTests: XCTestCase {
 
     func testRepetitiveDive() {
         var engine = BuhlmannZHL16C()
-        engine.initializeTissues()
 
         // Dive 1: 30m for 20 mins
         engine.addSegment(startDepth: 0, endDepth: 30, time: 2, gas: Gas.air)
