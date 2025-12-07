@@ -24,11 +24,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     /// - Parameters:
     ///   - surfacePressure: Surface pressure in bar (default 1.01325 = 1 ATM).
     ///   - gas: Surface gas the diver is breathing (default Air).
-    ///   - waterDensity: Water density in kg/m³ (default 1025.0 for salt water).
+    ///   - waterDensity: Water density in kg/m³ (default 1020.0 for salt water).
     public init(
         surfacePressure: Double = 1.01325,
         gas: Gas = .air,
-        waterDensity: Double = 1025.0
+        waterDensity: Double = 1020.0
     ) {
         self.surfacePressure = surfacePressure
         self.waterDensity = waterDensity
@@ -50,7 +50,10 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - compartments: Pre-loaded tissue compartments.
     ///   - surfacePressure: Surface pressure in bar.
     ///   - waterDensity: Water density in kg/m³.
-    public init(compartments: [Compartment], surfacePressure: Double = 1.01325, waterDensity: Double) {
+    public init(
+        compartments: [Compartment], surfacePressure: Double = 1.01325,
+        waterDensity: Double = 1020.0
+    ) {
         self.compartments = compartments
         self.surfacePressure = surfacePressure
         self.waterDensity = waterDensity
@@ -614,7 +617,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         if abs(startDepth - endDepth) < 0.01 {
             let effectiveGas = try Gas.effectiveGas(
                 atDepth: startDepth, setpoint: setpoint, diluent: diluent,
-                surfacePressure: surfacePressure)
+                surfacePressure: surfacePressure,
+                waterDensity: waterDensity)
             addSegment(
                 startDepth: startDepth, endDepth: endDepth, time: time, gas: effectiveGas)
             return
@@ -635,7 +639,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             let midDepth = (currentDepth + nextDepth) / 2.0
             let effectiveGas = try Gas.effectiveGas(
                 atDepth: midDepth, setpoint: setpoint, diluent: diluent,
-                surfacePressure: surfacePressure)
+                surfacePressure: surfacePressure,
+                waterDensity: waterDensity)
             addSegment(
                 startDepth: currentDepth, endDepth: nextDepth, time: timeStep, gas: effectiveGas)
             currentDepth = nextDepth
@@ -699,7 +704,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Helper to get effective gas at a depth
         func getEffectiveGas(at d: Double) throws -> Gas {
             try Gas.effectiveGas(
-                atDepth: d, setpoint: setpoint, diluent: diluent, surfacePressure: surfacePressure)
+                atDepth: d, setpoint: setpoint, diluent: diluent, surfacePressure: surfacePressure,
+                waterDensity: waterDensity)
         }
 
         // Helper to add a CCR stop segment
@@ -907,7 +913,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 atDepth: midDepth,
                 setpoint: segment.setpoint,
                 diluent: diluent,
-                surfacePressure: surfacePressure
+                surfacePressure: surfacePressure,
+                waterDensity: waterDensity
             )
             ccrSegments.append(
                 DiveSegment(

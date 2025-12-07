@@ -79,11 +79,12 @@ public struct Gas: Equatable, Sendable, Codable, Hashable {
         atDepth depth: Double,
         setpoint: Double,
         diluent: Gas,
-        surfacePressure: Double = 1.01325
+        surfacePressure: Double = 1.01325,
+        waterDensity: Double = 1020.0,
     ) throws -> Gas {
         // Calculate ambient pressure at depth
-        // Using standard seawater density (1030 kg/m³)
-        let ambientPressure = surfacePressure + (depth * 1030.0 * 9.80665 / 100000.0)
+        let ambientPressure = PressureConverter.metersToBar(
+            depth: depth, surfacePressure: surfacePressure, density: waterDensity)
 
         // Clamp setpoint to ambient pressure (can't have ppO2 > ambient)
         let effectiveSetpoint = min(setpoint, ambientPressure)
