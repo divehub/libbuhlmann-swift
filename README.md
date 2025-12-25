@@ -153,7 +153,8 @@ import BuhlmannZHL16C
 let engine = BuhlmannZHL16C(
     surfacePressure: 0.85,      // ~1500m altitude
     gas: .air,
-    waterDensity: 1000.0        // Fresh water
+    waterDensity: 1000.0,       // Fresh water
+    initialSurfacePressure: 1.01325 // Optional: sea-level saturation
 )
 ```
 

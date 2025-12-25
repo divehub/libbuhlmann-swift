@@ -25,17 +25,20 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
     ///   - surfacePressure: Surface pressure in bar (default 1.01325 = 1 ATM).
     ///   - gas: Surface gas the diver is breathing (default Air).
     ///   - waterDensity: Water density in kg/m³ (default 1020.0 for salt water).
+    ///   - initialSurfacePressure: Optional pressure used for initial tissue equilibration.
     public init(
         surfacePressure: Double = 1.01325,
         gas: Gas = .air,
-        waterDensity: Double = 1020.0
+        waterDensity: Double = 1020.0,
+        initialSurfacePressure: Double? = nil
     ) {
         self.surfacePressure = surfacePressure
         self.waterDensity = waterDensity
         self.compartments = Compartment.createAll()
 
         // Initialize tissues to surface equilibrium
-        let inspiredPressure = surfacePressure - waterVaporPressure
+        let equilibrationPressure = initialSurfacePressure ?? surfacePressure
+        let inspiredPressure = equilibrationPressure - waterVaporPressure
         let pN2 = inspiredPressure * gas.n2
         let pHe = inspiredPressure * gas.he
 
