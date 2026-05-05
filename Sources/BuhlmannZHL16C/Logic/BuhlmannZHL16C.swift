@@ -510,7 +510,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             let modSwitchDepth = floor(mod / config.stopIncrement) * config.stopIncrement
             let switchDepth =
                 gas.isOxygenSwitchGas
-                ? max(modSwitchDepth, config.oxygenSwitchDepth)
+                ? config.oxygenSwitchDepth
                 : modSwitchDepth
             return (gas, switchDepth)
         }.sorted { $0.switchDepth > $1.switchDepth }  // Deepest first
