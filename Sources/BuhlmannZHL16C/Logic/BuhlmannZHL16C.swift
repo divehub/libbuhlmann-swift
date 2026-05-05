@@ -515,6 +515,18 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             return (gas, switchDepth)
         }.sorted { $0.switchDepth > $1.switchDepth }  // Deepest first
 
+        func isPreferredGas(_ gas: Gas, over current: Gas) -> Bool {
+            if gas.o2 > current.o2 + DecoUtils.gasEpsilon {
+                return true
+            }
+            if abs(gas.o2 - current.o2) < DecoUtils.gasEpsilon
+                && gas.he > current.he + DecoUtils.gasEpsilon
+            {
+                return true
+            }
+            return false
+        }
+
         // Track which gases have been switched to (by index)
         var switchedGases: Set<Int> = []
 
@@ -533,20 +545,15 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 guard !switchedGases.contains(index),
                     depth <= entry.switchDepth + DecoUtils.depthTolerance,
                     entry.gas.isSafe(atDepth: depth),
-                    !(abs(entry.gas.o2 - currentGas.o2) < DecoUtils.gasEpsilon
-                        && abs(entry.gas.he - currentGas.he) < DecoUtils.gasEpsilon)
+                    isPreferredGas(entry.gas, over: currentGas)
                 else { continue }
 
                 // Pick highest O2 gas (best for deco), then highest He if O2 is equal
-                if let current = gasSwitchInfo {
-                    if entry.gas.o2 > current.gas.o2 + DecoUtils.gasEpsilon {
-                        gasSwitchInfo = (index, entry.gas)
-                    } else if abs(entry.gas.o2 - current.gas.o2) < DecoUtils.gasEpsilon
-                        && entry.gas.he > current.gas.he + DecoUtils.gasEpsilon
-                    {
-                        gasSwitchInfo = (index, entry.gas)
-                    }
-                } else {
+                if let current = gasSwitchInfo,
+                    isPreferredGas(entry.gas, over: current.gas)
+                {
+                    gasSwitchInfo = (index, entry.gas)
+                } else if gasSwitchInfo == nil {
                     gasSwitchInfo = (index, entry.gas)
                 }
             }
