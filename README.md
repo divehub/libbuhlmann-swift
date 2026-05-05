@@ -194,6 +194,7 @@ Configuration for decompression calculations:
 - `surfaceRate` - Final ascent rate from last stop
 - `stopIncrement` - Stop spacing (typically 3m)
 - `lastStopDepth` - Depth of last stop (3m or 6m)
+- `oxygenSwitchDepth` - Preferred switch depth for Oxygen-like deco gases
 - `gasSwitchTime` - Time for gas switches
 - `gasSwitchMode` - How gas switch time is applied
 

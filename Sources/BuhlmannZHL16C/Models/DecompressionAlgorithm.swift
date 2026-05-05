@@ -22,6 +22,8 @@ public struct DecoConfig: Sendable {
     public let stopIncrement: Double
     /// Last stop depth in meters (typically 3m or 6m)
     public let lastStopDepth: Double
+    /// Preferred Oxygen switch depth in meters.
+    public let oxygenSwitchDepth: Double
     /// Gas switch time in minutes (time spent at stop when switching gas)
     public let gasSwitchTime: Double
     /// Mode for handling gas switch timing
@@ -34,6 +36,7 @@ public struct DecoConfig: Sendable {
         surfaceRate: Double = 3.0,
         stopIncrement: Double = 3.0,
         lastStopDepth: Double = 3.0,
+        oxygenSwitchDepth: Double = 5.0,
         gasSwitchTime: Double = 1.0,
         gasSwitchMode: GasSwitchMode = .disabled,
         troubleshootingTime: Double = 0.0
@@ -42,6 +45,7 @@ public struct DecoConfig: Sendable {
         self.surfaceRate = surfaceRate
         self.stopIncrement = stopIncrement
         self.lastStopDepth = lastStopDepth
+        self.oxygenSwitchDepth = oxygenSwitchDepth
         self.gasSwitchTime = gasSwitchTime
         self.gasSwitchMode = gasSwitchMode
         self.troubleshootingTime = troubleshootingTime

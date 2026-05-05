@@ -45,6 +45,11 @@ public struct Gas: Equatable, Sendable, Codable, Hashable {
         return depth <= maxDepth
     }
 
+    /// Whether this gas should use the configured Oxygen switch depth.
+    public var isOxygenSwitchGas: Bool {
+        o2 >= 0.97 && he <= 0.001
+    }
+
     /// Standard Air (21% O2, 79% N2)
     public static let air = try! Gas(o2: 0.21, he: 0.0)
 

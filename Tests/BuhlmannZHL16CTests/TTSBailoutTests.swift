@@ -179,4 +179,42 @@ final class TTSBailoutTests: XCTestCase {
             ttsWithGas, ttsNoGas,
             "Bailout with deco gases should have shorter TTS")
     }
+
+    func testBailoutPlanUsesConfiguredOxygenSwitchDepth() throws {
+        let engine = BuhlmannZHL16C()
+        let diluent = Gas.air
+        let diveSegments: [(startDepth: Double, endDepth: Double, time: Double, setpoint: Double)] =
+            [
+                (0, 40, 2, 1.3),
+                (40, 40, 30, 1.3),
+            ]
+
+        let ean50 = try Gas(o2: 0.50, he: 0.0, maxDepth: 21.755)
+        let oxygen = try Gas(o2: 1.0, he: 0.0, maxDepth: 5.837)
+        let config = DecoConfig(
+            ascentRate: 9,
+            surfaceRate: 5,
+            stopIncrement: 3,
+            lastStopDepth: 5,
+            oxygenSwitchDepth: 5,
+            gasSwitchTime: 0,
+            gasSwitchMode: .disabled,
+            troubleshootingTime: 1
+        )
+
+        let bailout = try engine.calculateBailoutPlan(
+            diveSegments: diveSegments,
+            diluent: diluent,
+            bailoutDecoGases: [ean50, oxygen],
+            troubleshootingTime: 1,
+            gfLow: 0.70,
+            gfHigh: 0.85,
+            config: config
+        )
+
+        XCTAssertTrue(
+            bailout.bailoutSchedule.contains { $0.startDepth == 5 && $0.gas == oxygen },
+            "Bailout planning should use Oxygen at the configured 5m switch depth"
+        )
+    }
 }

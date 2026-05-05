@@ -507,7 +507,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         // Switch depth is the closest stop increment at or below MOD
         let gasSwitchDepths: [(gas: Gas, switchDepth: Double)] = decoGases.compactMap { gas in
             guard let mod = gas.maxDepth else { return nil }
-            let switchDepth = floor(mod / config.stopIncrement) * config.stopIncrement
+            let modSwitchDepth = floor(mod / config.stopIncrement) * config.stopIncrement
+            let switchDepth =
+                gas.isOxygenSwitchGas
+                ? max(modSwitchDepth, config.oxygenSwitchDepth)
+                : modSwitchDepth
             return (gas, switchDepth)
         }.sorted { $0.switchDepth > $1.switchDepth }  // Deepest first
 
