@@ -534,6 +534,29 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             return gas.isSafe(atDepth: depth)
         }
 
+        func nextStopIncludingGasSwitch(
+            from depth: Double,
+            standardNextStop: Double,
+            currentGas: Gas,
+            switchedGases: Set<Int>
+        ) -> Double {
+            var nextStop = standardNextStop
+
+            for (index, entry) in gasSwitchDepths.enumerated() {
+                let switchDepth = entry.switchDepth
+                guard !switchedGases.contains(index),
+                    switchDepth < depth - DecoUtils.depthTolerance,
+                    switchDepth > nextStop + DecoUtils.depthTolerance,
+                    canSwitchToGas(entry.gas, at: switchDepth, switchDepth: switchDepth),
+                    isPreferredGas(entry.gas, over: currentGas)
+                else { continue }
+
+                nextStop = max(nextStop, switchDepth)
+            }
+
+            return nextStop
+        }
+
         // Track which gases have been switched to (by index)
         var switchedGases: Set<Int> = []
 
@@ -541,9 +564,15 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
         while depth > DecoUtils.depthTolerance && iterations < maxIterations {
             iterations += 1
 
-            let nextStop = DecoUtils.nextStopDepth(
+            let standardNextStop = DecoUtils.nextStopDepth(
                 from: depth, stopIncrement: config.stopIncrement,
                 lastStopDepth: config.lastStopDepth)
+            let nextStop = nextStopIncludingGasSwitch(
+                from: depth,
+                standardNextStop: standardNextStop,
+                currentGas: currentGas,
+                switchedGases: switchedGases
+            )
 
             // --- Gas Switch Check ---
             // Find the best available gas at this depth that we haven't switched to
