@@ -527,6 +527,13 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             return false
         }
 
+        func canSwitchToGas(_ gas: Gas, at depth: Double, switchDepth: Double) -> Bool {
+            if gas.isOxygenSwitchGas && depth <= switchDepth + DecoUtils.depthTolerance {
+                return true
+            }
+            return gas.isSafe(atDepth: depth)
+        }
+
         // Track which gases have been switched to (by index)
         var switchedGases: Set<Int> = []
 
@@ -544,7 +551,7 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
             for (index, entry) in gasSwitchDepths.enumerated() {
                 guard !switchedGases.contains(index),
                     depth <= entry.switchDepth + DecoUtils.depthTolerance,
-                    entry.gas.isSafe(atDepth: depth),
+                    canSwitchToGas(entry.gas, at: depth, switchDepth: entry.switchDepth),
                     isPreferredGas(entry.gas, over: currentGas)
                 else { continue }
 
