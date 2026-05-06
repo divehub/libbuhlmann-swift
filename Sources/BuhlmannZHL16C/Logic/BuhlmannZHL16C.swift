@@ -486,6 +486,11 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
                 DiveSegment(startDepth: stopDepth, endDepth: stopDepth, time: time, gas: gas))
         }
 
+        func addSwitchMarker(at stopDepth: Double, gas: Gas) {
+            segments.append(
+                DiveSegment(startDepth: stopDepth, endDepth: stopDepth, time: 0, gas: gas))
+        }
+
         // Helper to add an ascent segment
         // Uses surfaceRate for final ascent to surface, ascentRate otherwise
         func addAscent(from startDepth: Double, to endDepth: Double, gas: Gas) throws {
@@ -601,7 +606,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
                 switch config.gasSwitchMode {
                 case .disabled:
-                    // Instant switch
+                    // Instant switch; keep a zero-time marker for display.
+                    addSwitchMarker(at: depth, gas: newGas)
                     currentGas = newGas
 
                 case .minimum:

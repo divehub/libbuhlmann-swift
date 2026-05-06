@@ -318,8 +318,47 @@ final class DecoTests: XCTestCase {
             "Oxygen should still switch at the configured 5m waypoint"
         )
         XCTAssertFalse(
-            deco.contains { $0.startDepth == 5 && $0.endDepth == 5 && $0.gas == oxygen },
+            deco.contains {
+                $0.startDepth == 5 && $0.endDepth == 5
+                    && $0.time > 0 && $0.gas == oxygen
+            },
             "The 5m switch waypoint must not be treated as clearing the 6m deco stop"
+        )
+    }
+
+    func testDisabledGasSwitchModeEmitsZeroMinuteSwitchStop() throws {
+        var engine = BuhlmannZHL16C()
+
+        engine.addSegment(startDepth: 0, endDepth: 40, time: 2, gas: Gas.air)
+        engine.addSegment(startDepth: 40, endDepth: 40, time: 30, gas: Gas.air)
+
+        let ean50 = try Gas(o2: 0.50, he: 0.0, maxDepth: 21.755)
+        let oxygen = try Gas(o2: 1.0, he: 0.0, maxDepth: 5.837)
+        let config = DecoConfig(
+            ascentRate: 9,
+            surfaceRate: 5,
+            stopIncrement: 3,
+            lastStopDepth: 3,
+            oxygenSwitchDepth: 5,
+            gasSwitchTime: 0,
+            gasSwitchMode: .disabled
+        )
+
+        let deco = try engine.calculateDecoStops(
+            gfLow: 0.50,
+            gfHigh: 0.85,
+            currentDepth: 40,
+            bottomGas: Gas.air,
+            decoGases: [ean50, oxygen],
+            config: config
+        )
+
+        XCTAssertTrue(
+            deco.contains { segment in
+                segment.startDepth == 5 && segment.endDepth == 5
+                    && segment.time == 0 && segment.gas == oxygen
+            },
+            "Disabled gas switching should emit a zero-minute stop marker on the new gas"
         )
     }
 
