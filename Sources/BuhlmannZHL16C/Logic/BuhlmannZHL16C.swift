@@ -626,7 +626,8 @@ public struct BuhlmannZHL16C: DecompressionAlgorithm {
 
             // --- Check if we need to stop (ceiling prevents ascending) ---
             let ceiling = getCeiling()
-            let canAscend = ceiling <= nextStop + DecoUtils.depthTolerance
+            // Gas switch waypoints must not relax the clearance required to leave the current stop.
+            let canAscend = ceiling <= standardNextStop + DecoUtils.depthTolerance
 
             if canAscend {
                 // Safe to ascend to next stop
